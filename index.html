@@ -576,7 +576,12 @@ async function loadAssets() {
     const r = await apiGet({action:'getAssets'});
     S.assets = (r.data||[]).map(a=>({...a, amount: parseFloat(a.amount)||0, date: String(a.date).substring(0,10)}));
     renderBalance();
+    renderDashboard();
   } catch(e){}
+}
+
+function renderAssets() {
+  renderBalance();
 }
 async function loadPositions() {
   try {
@@ -584,6 +589,8 @@ async function loadPositions() {
     S.positions = r.data||[];
     renderPositionsList();
     renderAssetInputList();
+    renderDashboard();
+    renderBalance();
   } catch(e){}
 }
 async function loadAccounts() {
