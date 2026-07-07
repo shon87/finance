@@ -656,7 +656,9 @@ function renderDashboard() {
   const optional = totalExpense - mandatory;
 
   // текущие счета — последнее значение позиций типа account на дату ≤ конец месяца
-  const monthCutoff = `${S.dashYear}-${pad(S.dashMonth+1)}-${pad(new Date(S.dashYear,S.dashMonth+1,0).getDate())}`;
+  const lastDayOfMonth = `${S.dashYear}-${pad(S.dashMonth+1)}-${pad(new Date(S.dashYear,S.dashMonth+1,0).getDate())}`;
+  const today = localDateStr(new Date());
+  const monthCutoff = lastDayOfMonth < today ? lastDayOfMonth : today;
   const accountPositions = S.positions.filter(p=>p.block==='account');
   let accountsTotal = 0;
   accountPositions.forEach(p => {
@@ -796,6 +798,15 @@ function renderYearSection(type, containerId) {
   const yearTx=S.transactions.filter(t=>t.type===type&&t.date.startsWith(String(S.viewYear)));
   if(!yearTx.length){container.innerHTML=`<div class="empty">Нет данных за ${S.viewYear}</div>`;return;}
 
+  // данные прошлого года для Δ%
+  const prevYear=S.viewYear-1;
+  const prevTx=S.transactions.filter(t=>t.type===type&&t.date.startsWith(String(prevYear)));
+  const prevMonths=[...new Set(prevTx.map(t=>parseInt(t.date.substring(5,7))))];
+  const prevCatTotals={};
+  prevTx.forEach(t=>{prevCatTotals[t.category]=(prevCatTotals[t.category]||0)+t.amount;});
+  const prevCatAvg={};
+  Object.entries(prevCatTotals).forEach(([c,total])=>{prevCatAvg[c]=total/(prevMonths.length||1);});
+
   const monthsPresent=[...new Set(yearTx.map(t=>parseInt(t.date.substring(5,7))))].sort((a,b)=>a-b);
   const cats=[...new Set(yearTx.map(t=>t.category))].sort();
   const idx={};
@@ -805,27 +816,57 @@ function renderYearSection(type, containerId) {
   const monthTotals={};
   monthsPresent.forEach(m=>{monthTotals[m]=Object.values(idx[m]||{}).reduce((s,v)=>s+v,0);});
   const grandTotal=yearTx.reduce((s,t)=>s+t.amount,0);
+  const prevGrandTotal=prevTx.reduce((s,t)=>s+t.amount,0);
+  const prevGrandAvg=prevGrandTotal/(prevMonths.length||1);
 
   let html=`<table class="year-table"><thead><tr>
     <th>Категория</th>${monthsPresent.map(m=>`<th>${MONTH_NAMES[m-1]}</th>`).join('')}
-    <th>Итого</th><th>Среднее</th><th>Доля</th>
+    <th>Итого</th><th>Среднее</th><th>Доля</th><th>Δ% к ${prevYear}</th>
   </tr></thead><tbody>`;
 
   cats.forEach(c=>{
     const total=catTotals[c];
     const avg=total/monthsPresent.length;
     const share=grandTotal?(total/grandTotal*100).toFixed(1):0;
+
+    // Δ% = (среднее текущего года - среднее прошлого) / среднее прошлого * 100
+    let delta='—';
+    let deltaStyle='color:var(--text2)';
+    if(prevCatAvg[c]){
+      const d=((avg-prevCatAvg[c])/prevCatAvg[c]*100);
+      const sign=d>0?'+':'';
+      delta=`${sign}${d.toFixed(1)}%`;
+      // для расходов рост = плохо (красный), для доходов рост = хорошо (зелёный)
+      if(type==='expense') deltaStyle=d>0?'color:var(--expense)':'color:var(--income)';
+      else deltaStyle=d>0?'color:var(--income)':'color:var(--expense)';
+    }
+
     html+=`<tr><td>${c}</td>
       ${monthsPresent.map(m=>{const v=(idx[m]||{})[c];return v?`<td>${fmtShort(v)}</td>`:`<td style="color:var(--border)">—</td>`;}).join('')}
       <td class="total-col">${fmtShort(total)}</td>
       <td class="avg-col">${fmtShort(avg)}</td>
-      <td class="share-col">${share}%</td></tr>`;
+      <td class="share-col">${share}%</td>
+      <td style="font-size:12px;font-weight:600;${deltaStyle}">${delta}</td></tr>`;
   });
+
+  // итоговая строка с общим Δ%
+  let totalDelta='—';
+  let totalDeltaStyle='color:var(--text2)';
+  if(prevGrandAvg){
+    const avgCurrent=grandTotal/monthsPresent.length;
+    const d=((avgCurrent-prevGrandAvg)/prevGrandAvg*100);
+    const sign=d>0?'+':'';
+    totalDelta=`${sign}${d.toFixed(1)}%`;
+    if(type==='expense') totalDeltaStyle=d>0?'color:var(--expense)':'color:var(--income)';
+    else totalDeltaStyle=d>0?'color:var(--income)':'color:var(--expense)';
+  }
 
   html+=`<tr class="sep"><td>ИТОГО</td>
     ${monthsPresent.map(m=>`<td>${fmtShort(monthTotals[m])}</td>`).join('')}
     <td class="total-col">${fmtShort(grandTotal)}</td>
-    <td class="avg-col">${fmtShort(grandTotal/monthsPresent.length)}</td><td></td></tr>`;
+    <td class="avg-col">${fmtShort(grandTotal/monthsPresent.length)}</td>
+    <td></td>
+    <td style="font-size:12px;font-weight:700;${totalDeltaStyle}">${totalDelta}</td></tr>`;
   html+='</tbody></table>';
   container.innerHTML=html;
 }
@@ -834,6 +875,7 @@ function renderYearSection(type, containerId) {
 // ДИНАМИКА
 // ============================================================
 function renderDynamics() {
+  const today=localDateStr(new Date());
   const months={};
   const mandatoryNames=S.categories.filter(c=>isMandatory(c)).map(c=>c.name);
   const passiveNames=getPassiveCategoryNames();
@@ -849,7 +891,8 @@ function renderDynamics() {
   const labels=keys.map(k=>{const[y,m]=k.split('-');return MONTH_NAMES[parseInt(m)-1]+' '+y.substring(2);});
   const capitalData=keys.map(k=>{
     const[ky,km]=k.split('-');
-    const cutoff=`${ky}-${km}-${pad(new Date(parseInt(ky),parseInt(km),0).getDate())}`;
+    const monthEnd=`${ky}-${km}-${pad(new Date(parseInt(ky),parseInt(km),0).getDate())}`;
+    const cutoff=monthEnd<today?monthEnd:today;
     const cap=calcCapital(cutoff);
     return cap>0?cap:null;
   });
