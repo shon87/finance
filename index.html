@@ -655,16 +655,15 @@ function renderDashboard() {
   const mandatory = expenses.filter(t=>mandatoryNames.includes(t.category)).reduce((s,t)=>s+t.amount,0);
   const optional = totalExpense - mandatory;
 
-  // текущие счета — последнее значение позиций типа account на дату ≤ конец месяца
-  const lastDayOfMonth = `${S.dashYear}-${pad(S.dashMonth+1)}-${pad(new Date(S.dashYear,S.dashMonth+1,0).getDate())}`;
-  const today = localDateStr(new Date());
-  const monthCutoff = lastDayOfMonth < today ? lastDayOfMonth : today;
+  // текущие счета — только если месяц не в будущем
   const accountPositions = S.positions.filter(p=>p.block==='account');
   let accountsTotal = 0;
-  accountPositions.forEach(p => {
-    const latest = getLatestAsset(p.id, monthCutoff);
-    if (latest) accountsTotal += latest.amount;
-  });
+  if (!isFutureMonth) {
+    accountPositions.forEach(p => {
+      const latest = getLatestAsset(p.id, monthCutoff);
+      if (latest) accountsTotal += latest.amount;
+    });
+  }
 
   const totalFunds = totalIncome + accountsTotal;
   const delta = totalFunds - totalExpense;
