@@ -661,7 +661,7 @@ function renderDashboard() {
   const optional = totalExpense - mandatory;
 
   // текущие счета — только если месяц не в будущем
-  const accountPositions = S.positions.filter(p=>p.block==='account');
+  const accountPositions = activePos().filter(p=>p.block==='account');
   let accountsTotal = 0;
   if (!isFutureMonth) {
     accountPositions.forEach(p => {
@@ -947,7 +947,13 @@ function renderCategoryChips() {
   const grid=document.getElementById('categories-grid'); if(!grid)return;
   const cats=S.categories.filter(c=>c.type===S.currentType);
   if(!cats.length){grid.innerHTML='<div class="empty">Нет категорий. Добавьте в Настройках.</div>';return;}
-  grid.innerHTML=cats.map(c=>`<div class="chip ${S.selectedCategory===c.name?'selected':''}" onclick="selectCategory('${c.name.replace(/'/g,"\\'")}'">${c.name}</div>`).join('');
+  grid.innerHTML=cats.map((c,i)=>`<div class="chip ${S.selectedCategory===c.name?'selected':''}" data-cat-idx="${i}">${c.name}</div>`).join('');
+  grid.querySelectorAll('.chip').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const cat=cats[parseInt(el.dataset.catIdx)];
+      if(cat){S.selectedCategory=cat.name;renderCategoryChips();}
+    });
+  });
 }
 function selectCategory(name){S.selectedCategory=name;renderCategoryChips();}
 
@@ -1047,10 +1053,10 @@ function setBalanceFilter(filter, btn) {
 function renderBalance() {
   const showPassives=S.settings.show_passives==='true'||S.settings.show_passives===true;
 
-  // суммы
+  // суммы — только активные позиции
   const blockTotals={};
   BLOCK_ORDER.forEach(b=>{blockTotals[b]=0;});
-  S.positions.forEach(p=>{
+  activePos().forEach(p=>{
     const latest=getLatestAsset(p.id,null);
     if(latest) blockTotals[p.block]=(blockTotals[p.block]||0)+latest.amount;
   });
@@ -1087,7 +1093,7 @@ function renderBalanceChart() {
     blocks.forEach(block=>{
       const total=totals[block];
       const pct=grandTotal?(total/grandTotal*100):0;
-      const positions=S.positions.filter(p=>p.block===block&&(showPassives||p.block!=='passive'));
+      const positions=activePos().filter(p=>p.block===block&&(showPassives||p.block!=='passive'));
       const hasPos=positions.some(p=>getLatestAsset(p.id,null));
       html+=`<div class="bal-bar-row">
         <div class="bal-bar-header" onclick="toggleBalPositions('bal-pos-${block}')">
@@ -1144,7 +1150,7 @@ function renderBalanceChart() {
       if(!total)return;
       const pct=grandTotal?(total/grandTotal*100):0;
       const color=accColors[i%accColors.length];
-      const positions=S.positions.filter(p=>(p.account||'Без счёта')===acc);
+      const positions=activePos().filter(p=>(p.account||'Без счёта')===acc);
       html+=`<div class="bal-bar-row">
         <div class="bal-bar-header" onclick="toggleBalPositions('bal-acc-${i}')">
           <div class="bal-bar-label">
@@ -1193,13 +1199,43 @@ function toggleBalPositions(id) {
 function renderPositionsList() {
   const el=document.getElementById('positions-list');
   if(!S.positions.length){el.innerHTML='<div class="empty">Нет позиций</div>';return;}
-  el.innerHTML='<div class="table-wrap"><table><thead><tr><th>Название</th><th>Блок</th><th>Счёт</th><th></th></tr></thead><tbody>'+
-    S.positions.map(p=>`<tr>
+  el.innerHTML='<div class="table-wrap"><table><thead><tr><th>Активна</th><th>Название</th><th>Блок</th><th>Счёт</th><th></th></tr></thead><tbody>'+
+    S.positions.map(p=>`<tr style="${p.active===false?'opacity:0.45':''}">
+      <td>
+        <span title="${p.active===false?'Продана — нажми чтобы активировать':'Активна — нажми чтобы пометить как проданную'}"
+          style="cursor:pointer;font-size:18px;line-height:1"
+          data-pos-id="${p.id}"
+          data-pos-active="${p.active===false?'false':'true'}"
+          class="pos-toggle">
+          ${p.active===false?'⚫':'🟢'}
+        </span>
+      </td>
       <td>${p.name}</td>
       <td style="color:var(--text2)">${BLOCK_LABELS[p.block]||p.block}</td>
       <td style="color:var(--text2)">${p.account||'—'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deletePosition('${p.id}')">×</button></td>
+      <td><button class="btn btn-danger btn-sm" data-del-id="${p.id}">×</button></td>
     </tr>`).join('')+'</tbody></table></div>';
+
+  // вешаем события через делегирование — без onclick в HTML
+  el.querySelectorAll('.pos-toggle').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p=S.positions.find(x=>x.id===btn.dataset.posId);
+      if(!p)return;
+      const newActive = btn.dataset.posActive==='false';
+      apiPost({action:'updatePosition', id:p.id, name:p.name, block:p.block, account:p.account, active:newActive})
+        .then(()=>{
+          p.active=newActive;
+          renderPositionsList();
+          renderBalance();
+          renderAssetInputList();
+        })
+        .catch(()=>showToast('Ошибка','error'));
+    });
+  });
+
+  el.querySelectorAll('[data-del-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=>deletePosition(btn.dataset.delId));
+  });
 }
 
 function renderAssetSelect() {
@@ -1247,7 +1283,7 @@ function renderAssetInputList() {
   let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px 24px">';
 
   BLOCK_ORDER.forEach(block => {
-    const positions = S.positions.filter(p => p.block === block);
+    const positions = activePos().filter(p => p.block === block);
     if (!positions.length) return;
     html += `<div style="grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);margin:10px 0 4px;border-top:1px solid var(--border);padding-top:10px">${BLOCK_LABELS[block]}</div>`;
     positions.forEach(p => {
@@ -1428,9 +1464,12 @@ function calcCapital(cutoff) {
   const investBlocks=['bonds','stocks'];
   const cushionBlocks=['cushion'];
   const accountBlocks=['account'];
+  // для капитала используем все позиции (включая неактивные) — чтобы история была честной
+  // но для текущего баланса (cutoff=null) — только активные
+  const posToUse = cutoff ? S.positions : activePos();
 
   let total=0;
-  S.positions.forEach(p=>{
+  posToUse.forEach(p=>{
     if(p.block==='passive')return;
     const latest=getLatestAsset(p.id,cutoff);
     if(!latest)return;
@@ -1442,7 +1481,7 @@ function calcCapital(cutoff) {
   });
 
   if(setting==='net'){
-    S.positions.filter(p=>p.block==='passive').forEach(p=>{
+    posToUse.filter(p=>p.block==='passive').forEach(p=>{
       const latest=getLatestAsset(p.id,cutoff);
       if(latest) total-=latest.amount;
     });
@@ -1451,6 +1490,8 @@ function calcCapital(cutoff) {
 }
 
 function isMandatory(c){return c.is_mandatory===true||c.is_mandatory==='true'||c.is_mandatory==='TRUE';}
+// только активные позиции (для баланса и формы ввода)
+function activePos(){return S.positions.filter(p=>p.active!==false);}
 function getPassiveCategoryNames(){const val=S.settings.passive_income_categories||'';return val?val.split(',').map(s=>s.trim()).filter(Boolean):[];}
 
 function fmt(n){
