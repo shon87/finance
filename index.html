@@ -16,7 +16,7 @@
 
     /* NAV */
     .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
-    .nav-title { font-size: 15px; font-weight: 700; color: var(--accent); }
+    .nav-title { font-size: 15px; font-weight: 700; color: var(--accent); margin-right: 12px; white-space: nowrap; }
     .nav-tabs { display: flex; gap: 2px; flex-wrap: wrap; }
     .nav-tab { padding: 6px 11px; border-radius: 8px; border: none; background: transparent; color: var(--text2); cursor: pointer; font-size: 12px; transition: all 0.15s; }
     .nav-tab.active { background: var(--accent); color: #fff; }
@@ -408,13 +408,13 @@
 
   <!-- Форма ввода -->
   <div class="card">
-    <div class="card-title">Внести данные на дату</div>
-    <div class="form-group" style="margin-bottom:12px">
-      <div class="form-label">Дата</div>
-      <input type="date" class="form-input" id="asset-date" onchange="renderAssetInputList()">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="card-title" style="margin:0">Внести данные на дату</div>
+      <input type="date" class="form-input" id="asset-date" style="width:auto;padding:6px 12px" onchange="renderAssetInputList()">
+      <button class="btn btn-primary" style="width:auto;padding:8px 20px" onclick="submitAllAssets()">Сохранить все</button>
+      <span style="font-size:12px;color:var(--text2)">или Enter в поле — сохранить одну</span>
     </div>
     <div id="asset-input-list"></div>
-    <button class="btn btn-primary" style="margin-top:8px" onclick="submitAllAssets()">Сохранить все</button>
   </div>
 
 </div>
@@ -1186,27 +1186,105 @@ async function deletePosition(id) {
 // Рендерим список всех позиций с полями суммы
 function renderAssetInputList() {
   const el = document.getElementById('asset-input-list');
-  if (!S.positions.length) { el.innerHTML = '<div class="empty">Нет позиций. Добавьте в справочник ниже.</div>'; return; }
+  if (!S.positions.length) { el.innerHTML = '<div class="empty">Нет позиций. Добавьте в Настройках.</div>'; return; }
   const date = document.getElementById('asset-date').value;
 
-  let html = '';
+  // на ПК — две колонки, на мобилке — одна
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:6px 24px">';
+
   BLOCK_ORDER.forEach(block => {
     const positions = S.positions.filter(p => p.block === block);
     if (!positions.length) return;
-    html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);margin:10px 0 6px">${BLOCK_LABELS[block]}</div>`;
+    html += `<div style="grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);margin:10px 0 4px;border-top:1px solid var(--border);padding-top:10px">${BLOCK_LABELS[block]}</div>`;
     positions.forEach(p => {
       const latest = getLatestAsset(p.id, date || null);
       const currentVal = latest ? latest.amount : '';
-      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <div style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">
-          ${p.name}${p.account ? '<span style="color:var(--text2);font-size:11px"> · '+p.account+'</span>' : ''}
+      html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0" title="${p.name}">
+          ${p.name}${p.account ? `<span style="color:var(--text2);font-size:11px"> · ${p.account}</span>` : ''}
         </div>
-        <input type="text" class="form-input" style="width:120px;padding:6px 10px;font-size:13px"
-          id="asset-input-${p.id}" placeholder="сумма" value="${currentVal}">
+        <input type="text" class="form-input" style="width:110px;padding:5px 8px;font-size:13px;flex-shrink:0"
+          id="asset-input-${p.id}"
+          data-pos-id="${p.id}"
+          data-orig-amount="${currentVal}"
+          placeholder="сумма"
+          value="${currentVal}"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();saveOneAsset('${p.id}');}">
       </div>`;
     });
   });
+
+  html += '</div>';
   el.innerHTML = html;
+}
+
+// Сохранить одну позицию (по Enter)
+async function saveOneAsset(positionId) {
+  const date = document.getElementById('asset-date').value;
+  if (!date) return showToast('Укажите дату', 'error');
+  const input = document.getElementById(`asset-input-${positionId}`);
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) return;
+  let amount;
+  try { amount = Function('"use strict";return (' + raw.replace(/[^0-9+\-*/().]/g,'') + ')')(); }
+  catch(e) { return showToast('Неверная сумма', 'error'); }
+  if (isNaN(amount) || amount < 0) return showToast('Неверная сумма', 'error');
+
+  try {
+    await saveAssetSmart(date, positionId, amount);
+    showToast('Сохранено', 'success');
+    await loadAssets();
+    renderAssetInputList();
+  } catch(e) { showToast('Ошибка', 'error'); }
+}
+
+// Умное сохранение одной позиции:
+// а) дата + позиция + сумма те же → пропустить
+// б) дата + позиция те же, сумма изменилась → update
+// в) дата другая или записи нет → create
+async function saveAssetSmart(date, positionId, amount) {
+  // ищем существующую запись с той же датой и позицией
+  const existing = S.assets.filter(a => a.position_id === positionId && a.date === date);
+  if (existing.length) {
+    const last = existing.reduce((b,a) => a._rowIndex > b._rowIndex ? a : b);
+    if (last.amount === amount) return; // а) ничего не делать
+    await apiPost({ action: 'updateAsset', rowIndex: last._rowIndex, amount }); // б) update
+  } else {
+    await apiPost({ action: 'addAsset', date, position_id: positionId, amount }); // в) create
+  }
+}
+
+async function submitAllAssets() {
+  const date = document.getElementById('asset-date').value;
+  if (!date) return showToast('Укажите дату', 'error');
+
+  const tasks = [];
+  for (const p of S.positions) {
+    const input = document.getElementById(`asset-input-${p.id}`);
+    if (!input) continue;
+    const raw = input.value.trim();
+    if (!raw) continue;
+    let amount;
+    try { amount = Function('"use strict";return (' + raw.replace(/[^0-9+\-*/().]/g,'') + ')')(); }
+    catch(e) { continue; }
+    if (isNaN(amount) || amount < 0) continue;
+    tasks.push({ positionId: p.id, amount });
+  }
+
+  if (!tasks.length) return showToast('Нет данных для сохранения', 'error');
+
+  try {
+    // сохраняем последовательно чтобы не гонять параллельные запросы к одному листу
+    let saved = 0;
+    for (const t of tasks) {
+      await saveAssetSmart(date, t.positionId, t.amount);
+      saved++;
+    }
+    showToast(`Сохранено ${saved} позиций`, 'success');
+    await loadAssets();
+    renderAssetInputList();
+  } catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
 }
 
 async function submitAllAssets() {
