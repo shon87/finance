@@ -645,6 +645,11 @@ function filterByPeriod(txs, period) {
 // DASHBOARD
 // ============================================================
 function renderDashboard() {
+  const today = localDateStr(new Date());
+  const lastDayOfMonth = `${S.dashYear}-${pad(S.dashMonth+1)}-${pad(new Date(S.dashYear,S.dashMonth+1,0).getDate())}`;
+  const monthCutoff = lastDayOfMonth < today ? lastDayOfMonth : today;
+  const isFutureMonth = `${S.dashYear}-${pad(S.dashMonth+1)}-01` > today;
+
   const txs = getMonthTx();
   const expenses = txs.filter(t=>t.type==='expense');
   const incomes = txs.filter(t=>t.type==='income');
