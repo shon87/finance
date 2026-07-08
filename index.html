@@ -304,7 +304,7 @@
     <div class="card-title">Таблица по месяцам</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Период</th><th>Доходы</th><th>Расходы</th><th>Обязательные</th><th>Пассивный доход</th><th>Капитал</th><th>Р/Д</th></tr></thead>
+        <thead><tr><th>Период</th><th>Доходы</th><th>Расходы</th><th>Обязательные</th><th>Пассивный доход</th><th>Капитал</th><th title="Доля пассивного дохода от расходов. 100% = финансовая независимость">Пасс/Расх</th></tr></thead>
         <tbody id="dynamics-table-body"></tbody>
       </table>
     </div>
@@ -514,7 +514,7 @@ const S = {
   settings: {}, currentType: 'expense', selectedCategory: '',
   dashYear: new Date().getFullYear(), dashMonth: new Date().getMonth(),
   viewYear: new Date().getFullYear(), histPeriod: 'month',
-  balanceFilter: 'type',
+  balanceFilter: 'type', transactionsLoaded: 'none',
   chartExpense: null, chartIncome: null, chartDynamics: null,
 };
 
@@ -541,7 +541,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function loadAll() {
-  Promise.all([loadCategories(), loadTransactions(), loadAssets(), loadPositions(), loadAccounts(), loadSettings()]);
+  // быстрый старт: сначала текущий месяц + категории + позиции
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = pad(now.getMonth() + 1);
+  const from = `${y}-${m}-01`;
+  const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
+  const to = `${y}-${m}-${pad(lastDay)}`;
+
+  Promise.all([
+    loadCategories(),
+    loadTransactionsFast(from, to),
+    loadAssets(),
+    loadPositions(),
+    loadSettings(),
+  ]).then(() => {
+    // после быстрой загрузки грузим все транзакции в фоне
+    loadTransactionsFull();
+  });
 }
 
 // ============================================================
@@ -564,12 +581,29 @@ async function apiPost(data) {
 async function loadCategories() {
   try { const r = await apiGet({action:'getCategories'}); S.categories = r.data||[]; renderCategoryChips(); renderSettingsCategories(); } catch(e){}
 }
-async function loadTransactions() {
+// быстрая загрузка — только текущий месяц
+async function loadTransactionsFast(from, to) {
+  try {
+    const r = await apiGet({action:'getTransactions', from, to});
+    S.transactions = (r.data||[]).map(t=>({...t, amount: parseFloat(t.amount)||0, date: String(t.date).substring(0,10)}));
+    S.transactionsLoaded = 'partial';
+    renderDashboard(); renderHistory();
+  } catch(e){}
+}
+
+// полная загрузка — все данные, в фоне
+async function loadTransactionsFull() {
   try {
     const r = await apiGet({action:'getTransactions'});
     S.transactions = (r.data||[]).map(t=>({...t, amount: parseFloat(t.amount)||0, date: String(t.date).substring(0,10)}));
+    S.transactionsLoaded = 'full';
     renderDashboard(); renderYearTable(); renderDynamics(); renderHistory();
   } catch(e){}
+}
+
+// совместимость — полная загрузка по запросу
+async function loadTransactions() {
+  return loadTransactionsFull();
 }
 async function loadAssets() {
   try {
@@ -825,7 +859,7 @@ function renderYearSection(type, containerId) {
 
   let html=`<table class="year-table"><thead><tr>
     <th>Категория</th>${monthsPresent.map(m=>`<th>${MONTH_NAMES[m-1]}</th>`).join('')}
-    <th>Итого</th><th>Среднее</th><th>Доля</th><th>Δ% к ${prevYear}</th>
+    <th>Итого</th><th>Среднее</th><th>Доля</th><th>Ср. ${prevYear}</th><th>Δ%</th>
   </tr></thead><tbody>`;
 
   cats.forEach(c=>{
@@ -833,14 +867,21 @@ function renderYearSection(type, containerId) {
     const avg=total/monthsPresent.length;
     const share=grandTotal?(total/grandTotal*100).toFixed(1):0;
 
-    // Δ% = (среднее текущего года - среднее прошлого) / среднее прошлого * 100
+    // Δ% = (среднее текущего - среднее прошлого) / среднее прошлого * 100
+    // делим на количество месяцев с данными, а не на 12
+    const prevMonthsWithCat = prevTx.filter(t=>t.category===c).length > 0
+      ? [...new Set(prevTx.filter(t=>t.category===c).map(t=>t.date.substring(0,7)))].length
+      : 0;
+    const prevCatTotal = prevCatTotals[c] || 0;
+    const prevCatAvgVal = prevMonthsWithCat > 0 ? prevCatTotal / prevMonthsWithCat : 0;
+
+    let prevAvgStr = prevCatAvgVal > 0 ? fmtShort(prevCatAvgVal) : '—';
     let delta='—';
     let deltaStyle='color:var(--text2)';
-    if(prevCatAvg[c]){
-      const d=((avg-prevCatAvg[c])/prevCatAvg[c]*100);
+    if(prevCatAvgVal > 0){
+      const d=((avg-prevCatAvgVal)/prevCatAvgVal*100);
       const sign=d>0?'+':'';
       delta=`${sign}${d.toFixed(1)}%`;
-      // для расходов рост = плохо (красный), для доходов рост = хорошо (зелёный)
       if(type==='expense') deltaStyle=d>0?'color:var(--expense)':'color:var(--income)';
       else deltaStyle=d>0?'color:var(--income)':'color:var(--expense)';
     }
@@ -850,6 +891,7 @@ function renderYearSection(type, containerId) {
       <td class="total-col">${fmtShort(total)}</td>
       <td class="avg-col">${fmtShort(avg)}</td>
       <td class="share-col">${share}%</td>
+      <td class="avg-col">${prevAvgStr}</td>
       <td style="font-size:12px;font-weight:600;${deltaStyle}">${delta}</td></tr>`;
   });
 
@@ -865,11 +907,14 @@ function renderYearSection(type, containerId) {
     else totalDeltaStyle=d>0?'color:var(--income)':'color:var(--expense)';
   }
 
+  const prevGrandMonths = prevMonths.length || 1;
+  const prevGrandAvgVal = prevGrandTotal / prevGrandMonths;
   html+=`<tr class="sep"><td>ИТОГО</td>
     ${monthsPresent.map(m=>`<td>${fmtShort(monthTotals[m])}</td>`).join('')}
     <td class="total-col">${fmtShort(grandTotal)}</td>
     <td class="avg-col">${fmtShort(grandTotal/monthsPresent.length)}</td>
     <td></td>
+    <td class="avg-col">${prevGrandAvgVal>0?fmtShort(prevGrandAvgVal):'—'}</td>
     <td style="font-size:12px;font-weight:700;${totalDeltaStyle}">${totalDelta}</td></tr>`;
   html+='</tbody></table>';
   container.innerHTML=html;
@@ -929,7 +974,9 @@ function renderDynamics() {
       <td>${fmt(d.mandatory||0)}</td>
       <td>${fmt(d.passive||0)}</td>
       <td class="c-accent">${cap!=null?fmt(cap):'—'}</td>
-      <td>${d.income?((d.expense/d.income)*100).toFixed(0)+'%':'—'}</td>
+      <td style="${d.passive&&d.expense?(d.passive/d.expense>=1?'color:var(--income);font-weight:700':''):''}">
+        ${d.passive&&d.expense?((d.passive/d.expense)*100).toFixed(0)+'%':'—'}
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1451,8 +1498,19 @@ function showPage(name){
   if(idx>=0)document.querySelectorAll('.nav-tab')[idx].classList.add('active');
   if(name==='balance'){renderBalance();renderAssetInputList();}
   if(name==='settings'){renderSettingsCategories();renderPositionsList();}
-  if(name==='year')renderYearTable();
-  if(name==='dynamics')renderDynamics();
+  if(name==='year'){
+    if(S.transactionsLoaded!=='full'){
+      document.getElementById('year-expense-container').innerHTML='<div class="loader">Загрузка всех данных...</div>';
+      document.getElementById('year-income-container').innerHTML='<div class="loader">Загрузка всех данных...</div>';
+      loadTransactionsFull().then(()=>renderYearTable());
+    } else { renderYearTable(); }
+  }
+  if(name==='dynamics'){
+    if(S.transactionsLoaded!=='full'){
+      document.getElementById('dynamics-table-body').innerHTML='<tr><td colspan="7" class="loader">Загрузка всех данных...</td></tr>';
+      loadTransactionsFull().then(()=>renderDynamics());
+    } else { renderDynamics(); }
+  }
 }
 
 // ============================================================
