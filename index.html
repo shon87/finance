@@ -81,11 +81,12 @@
     .grid-table td.income-val { color: var(--income); }
 
     /* YEAR TABLE */
+    .year-table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }
     .year-table { border-collapse: collapse; font-size: 12px; }
-    .year-table th { background: var(--surface2); color: var(--text2); font-weight: 500; font-size: 10px; text-transform: uppercase; padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); }
-    .year-table th:first-child { text-align: left; min-width: 150px; }
+    .year-table th { background: var(--surface2); color: var(--text2); font-weight: 500; font-size: 10px; text-transform: uppercase; padding: 6px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+    .year-table th:first-child { text-align: left; min-width: 150px; position: sticky; left: 0; z-index: 3; background: var(--surface2); }
     .year-table td { padding: 5px 10px; text-align: right; border-bottom: 1px solid var(--border); }
-    .year-table td:first-child { text-align: left; color: var(--text2); }
+    .year-table td:first-child { text-align: left; color: var(--text2); position: sticky; left: 0; background: var(--surface); z-index: 1; }
     .year-table tr:hover td { background: var(--surface2); }
     .year-table td.total-col { font-weight: 700; color: var(--accent); }
     .year-table td.avg-col { color: var(--text2); }
@@ -172,6 +173,7 @@
 
     /* PERIOD TABS */
     .period-row { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .period-row-sticky { position: sticky; top: 52px; z-index: 10; background: var(--bg); padding: 12px 0 0; margin: -12px -16px 8px; padding-left: 16px; padding-right: 16px; }
     .period-btn { padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-size: 13px; transition: all 0.15s; }
     .period-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(108,99,255,0.1); }
 
@@ -299,17 +301,17 @@
   </div>
   <div class="card">
     <div class="card-title">Расходы по категориям</div>
-    <div class="table-scroll" id="year-expense-container"><div class="loader">Загрузка...</div></div>
+    <div id="year-expense-container"><div class="loader">Загрузка...</div></div>
   </div>
   <div class="card">
     <div class="card-title">Доходы по категориям</div>
-    <div class="table-scroll" id="year-income-container"><div class="loader">Загрузка...</div></div>
+    <div id="year-income-container"><div class="loader">Загрузка...</div></div>
   </div>
 </div>
 
 <!-- ===================== ДИНАМИКА ===================== -->
 <div class="page" id="page-dynamics">
-  <div class="period-row" id="dynamics-period-row">
+  <div class="period-row period-row-sticky" id="dynamics-period-row">
     <button class="period-btn active" onclick="setDynamicsPeriod(12,this)">1 год</button>
     <button class="period-btn" onclick="setDynamicsPeriod(24,this)">2 года</button>
     <button class="period-btn" onclick="setDynamicsPeriod(0,this)">Всё время</button>
@@ -374,6 +376,13 @@
     <button class="period-btn" onclick="setHistoryPeriod('all',this)">Всё время</button>
   </div>
   <div class="card">
+    <div class="card-title">По категориям</div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Категория</th><th>Сумма</th><th>%</th></tr></thead>
+      <tbody id="summary-body"></tbody></table>
+    </div>
+  </div>
+  <div class="card">
     <div class="section-header">
       <div class="card-title" style="margin:0">Транзакции</div>
       <select class="form-input" style="width:auto;padding:5px 10px" id="history-filter" onchange="renderHistory()">
@@ -383,13 +392,6 @@
       </select>
     </div>
     <div id="history-list"><div class="loader">Загрузка...</div></div>
-  </div>
-  <div class="card">
-    <div class="card-title">По категориям</div>
-    <div class="table-wrap">
-      <table><thead><tr><th>Категория</th><th>Сумма</th><th>% от расходов</th></tr></thead>
-      <tbody id="summary-body"></tbody></table>
-    </div>
   </div>
 </div>
 
@@ -911,9 +913,10 @@ function renderYearSection(type, containerId) {
   const prevGrandTotal=prevTx.reduce((s,t)=>s+t.amount,0);
   const prevGrandAvg=prevGrandTotal/(prevMonths.length||1);
 
-  let html=`<table class="year-table"><thead><tr>
-    <th>Категория</th>${monthsPresent.map(m=>`<th>${MONTH_NAMES[m-1]}</th>`).join('')}
+  let html=`<div class="year-table-wrap"><table class="year-table"><thead><tr>
+    <th>Категория</th>
     <th>Итого</th><th>Среднее</th><th>Доля</th><th>Ср. ${prevYear}</th><th>Δ%</th>
+    ${monthsPresent.map(m=>`<th>${MONTH_NAMES[m-1]}</th>`).join('')}
   </tr></thead><tbody>`;
 
   cats.forEach(c=>{
@@ -921,8 +924,6 @@ function renderYearSection(type, containerId) {
     const avg=total/monthsPresent.length;
     const share=grandTotal?(total/grandTotal*100).toFixed(1):0;
 
-    // Δ% = (среднее текущего - среднее прошлого) / среднее прошлого * 100
-    // делим на количество месяцев с данными, а не на 12
     const prevMonthsWithCat = prevTx.filter(t=>t.category===c).length > 0
       ? [...new Set(prevTx.filter(t=>t.category===c).map(t=>t.date.substring(0,7)))].length
       : 0;
@@ -941,15 +942,15 @@ function renderYearSection(type, containerId) {
     }
 
     html+=`<tr><td>${c}</td>
-      ${monthsPresent.map(m=>{const v=(idx[m]||{})[c];return v?`<td>${fmt(v)}</td>`:`<td style="color:var(--border)">—</td>`;}).join('')}
       <td class="total-col">${fmt(total)}</td>
       <td class="avg-col">${fmt(avg)}</td>
       <td class="share-col">${share}%</td>
       <td class="avg-col">${prevAvgStr}</td>
-      <td style="font-size:12px;font-weight:600;${deltaStyle}">${delta}</td></tr>`;
+      <td style="font-size:12px;font-weight:600;${deltaStyle}">${delta}</td>
+      ${monthsPresent.map(m=>{const v=(idx[m]||{})[c];return v?`<td>${fmt(v)}</td>`:`<td style="color:var(--border)">—</td>`;}).join('')}
+    </tr>`;
   });
 
-  // итоговая строка с общим Δ%
   let totalDelta='—';
   let totalDeltaStyle='color:var(--text2)';
   if(prevGrandAvg){
@@ -964,13 +965,13 @@ function renderYearSection(type, containerId) {
   const prevGrandMonths = prevMonths.length || 1;
   const prevGrandAvgVal = prevGrandTotal / prevGrandMonths;
   html+=`<tr class="sep"><td>ИТОГО</td>
-    ${monthsPresent.map(m=>`<td>${fmt(monthTotals[m])}</td>`).join('')}
     <td class="total-col">${fmt(grandTotal)}</td>
     <td class="avg-col">${fmt(grandTotal/monthsPresent.length)}</td>
     <td></td>
     <td class="avg-col">${prevGrandAvgVal>0?fmt(prevGrandAvgVal):'—'}</td>
-    <td style="font-size:12px;font-weight:700;${totalDeltaStyle}">${totalDelta}</td></tr>`;
-  html+='</tbody></table>';
+    <td style="font-size:12px;font-weight:700;${totalDeltaStyle}">${totalDelta}</td>
+    ${monthsPresent.map(m=>`<td>${fmt(monthTotals[m])}</td>`).join('')}
+  </tr></tbody></table></div>`;
   container.innerHTML=html;
 }
 
@@ -1131,12 +1132,11 @@ function renderHistory() {
       </div>
     </div>`).join('')+'</div>';}
 
-  const expenses=filtered.filter(t=>t.type==='expense');
-  const total=expenses.reduce((s,t)=>s+t.amount,0);
+  const totalFiltered=filtered.reduce((s,t)=>s+t.amount,0);
   const bycat={};
-  expenses.forEach(t=>{bycat[t.category]=(bycat[t.category]||0)+t.amount;});
+  filtered.forEach(t=>{bycat[t.category]=(bycat[t.category]||0)+t.amount;});
   document.getElementById('summary-body').innerHTML=Object.entries(bycat).sort((a,b)=>b[1]-a[1])
-    .map(([c,s])=>`<tr><td>${c}</td><td>${fmt(s)}</td><td>${total?(s/total*100).toFixed(1)+'%':'—'}</td></tr>`).join('')
+    .map(([c,s])=>`<tr><td>${c}</td><td>${fmt(s)}</td><td>${totalFiltered?(s/totalFiltered*100).toFixed(1)+'%':'—'}</td></tr>`).join('')
     ||'<tr><td colspan="3" style="color:var(--text2);text-align:center">Нет данных</td></tr>';
 }
 async function deleteTx(rowIndex) {
