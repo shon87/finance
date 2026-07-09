@@ -895,11 +895,8 @@ function renderYearSection(type, containerId) {
   // данные прошлого года для Δ%
   const prevYear=S.viewYear-1;
   const prevTx=S.transactions.filter(t=>t.type===type&&t.date.startsWith(String(prevYear)));
-  const prevMonths=[...new Set(prevTx.map(t=>parseInt(t.date.substring(5,7))))];
   const prevCatTotals={};
   prevTx.forEach(t=>{prevCatTotals[t.category]=(prevCatTotals[t.category]||0)+t.amount;});
-  const prevCatAvg={};
-  Object.entries(prevCatTotals).forEach(([c,total])=>{prevCatAvg[c]=total/(prevMonths.length||1);});
 
   const monthsPresent=[...new Set(yearTx.map(t=>parseInt(t.date.substring(5,7))))].sort((a,b)=>a-b);
   const cats=[...new Set(yearTx.map(t=>t.category))].sort();
@@ -911,7 +908,7 @@ function renderYearSection(type, containerId) {
   monthsPresent.forEach(m=>{monthTotals[m]=Object.values(idx[m]||{}).reduce((s,v)=>s+v,0);});
   const grandTotal=yearTx.reduce((s,t)=>s+t.amount,0);
   const prevGrandTotal=prevTx.reduce((s,t)=>s+t.amount,0);
-  const prevGrandAvg=prevGrandTotal/(prevMonths.length||1);
+  const prevGrandAvg=prevGrandTotal/(monthsPresent.length||1);
 
   let html=`<div class="year-table-wrap"><table class="year-table"><thead><tr>
     <th>Категория</th>
@@ -924,11 +921,8 @@ function renderYearSection(type, containerId) {
     const avg=total/monthsPresent.length;
     const share=grandTotal?(total/grandTotal*100).toFixed(1):0;
 
-    const prevMonthsWithCat = prevTx.filter(t=>t.category===c).length > 0
-      ? [...new Set(prevTx.filter(t=>t.category===c).map(t=>t.date.substring(0,7)))].length
-      : 0;
     const prevCatTotal = prevCatTotals[c] || 0;
-    const prevCatAvgVal = prevMonthsWithCat > 0 ? prevCatTotal / prevMonthsWithCat : 0;
+    const prevCatAvgVal = prevCatTotal > 0 ? prevCatTotal / monthsPresent.length : 0;
 
     let prevAvgStr = prevCatAvgVal > 0 ? fmt(prevCatAvgVal) : '—';
     let delta='—';
@@ -962,8 +956,7 @@ function renderYearSection(type, containerId) {
     else totalDeltaStyle=d>0?'color:var(--income)':'color:var(--expense)';
   }
 
-  const prevGrandMonths = prevMonths.length || 1;
-  const prevGrandAvgVal = prevGrandTotal / prevGrandMonths;
+  const prevGrandAvgVal = prevGrandTotal / (monthsPresent.length || 1);
   html+=`<tr class="sep"><td>ИТОГО</td>
     <td class="total-col">${fmt(grandTotal)}</td>
     <td class="avg-col">${fmt(grandTotal/monthsPresent.length)}</td>
