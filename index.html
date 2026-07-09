@@ -894,11 +894,14 @@ function renderYearSection(type, containerId) {
 
   // данные прошлого года для Δ%
   const prevYear=S.viewYear-1;
-  const prevTx=S.transactions.filter(t=>t.type===type&&t.date.startsWith(String(prevYear)));
-  const prevCatTotals={};
-  prevTx.forEach(t=>{prevCatTotals[t.category]=(prevCatTotals[t.category]||0)+t.amount;});
 
   const monthsPresent=[...new Set(yearTx.map(t=>parseInt(t.date.substring(5,7))))].sort((a,b)=>a-b);
+
+  // прошлый год — только те же месяцы, что есть в текущем (для честного сравнения)
+  const prevTx=S.transactions.filter(t=>t.type===type&&t.date.startsWith(String(prevYear))
+    && (monthsPresent.length===12 || monthsPresent.includes(parseInt(t.date.substring(5,7)))));
+  const prevCatTotals={};
+  prevTx.forEach(t=>{prevCatTotals[t.category]=(prevCatTotals[t.category]||0)+t.amount;});
   const cats=[...new Set(yearTx.map(t=>t.category))].sort();
   const idx={};
   yearTx.forEach(t=>{const m=parseInt(t.date.substring(5,7));if(!idx[m])idx[m]={};idx[m][t.category]=(idx[m][t.category]||0)+t.amount;});
