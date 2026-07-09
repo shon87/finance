@@ -784,14 +784,14 @@ function renderDayTable(txs, containerId, isIncome) {
     const dk=pad(d); const dayTotal=Object.values(idx[dk]||{}).reduce((s,v)=>s+v,0);
     if(!dayTotal) continue;
     html+=`<tr><td>${dk}.${pad(S.dashMonth+1)}</td>
-      ${cats.map(c=>{ const v=(idx[dk]||{})[c]; return v?`<td class="${isIncome?'income-val':'val'}">${fmtShort(v)}</td>`:`<td class="zero">—</td>`; }).join('')}
-      <td class="val" style="font-weight:600">${fmtShort(dayTotal)}</td></tr>`;
+      ${cats.map(c=>{ const v=(idx[dk]||{})[c]; return v?`<td class="${isIncome?'income-val':'val'}">${fmt(v)}</td>`:`<td class="zero">—</td>`; }).join('')}
+      <td class="val" style="font-weight:600">${fmt(dayTotal)}</td></tr>`;
   }
 
   const grandTotal=txs.reduce((s,t)=>s+t.amount,0);
   html+=`<tr class="total-row"><td>ИТОГО</td>
-    ${cats.map(c=>`<td>${fmtShort(catTotals[c])}</td>`).join('')}
-    <td>${fmtShort(grandTotal)}</td></tr></tbody></table>`;
+    ${cats.map(c=>`<td>${fmt(catTotals[c])}</td>`).join('')}
+    <td>${fmt(grandTotal)}</td></tr></tbody></table>`;
   container.innerHTML=html;
 }
 
@@ -929,7 +929,7 @@ function renderYearSection(type, containerId) {
     const prevCatTotal = prevCatTotals[c] || 0;
     const prevCatAvgVal = prevMonthsWithCat > 0 ? prevCatTotal / prevMonthsWithCat : 0;
 
-    let prevAvgStr = prevCatAvgVal > 0 ? fmtShort(prevCatAvgVal) : '—';
+    let prevAvgStr = prevCatAvgVal > 0 ? fmt(prevCatAvgVal) : '—';
     let delta='—';
     let deltaStyle='color:var(--text2)';
     if(prevCatAvgVal > 0){
@@ -941,9 +941,9 @@ function renderYearSection(type, containerId) {
     }
 
     html+=`<tr><td>${c}</td>
-      ${monthsPresent.map(m=>{const v=(idx[m]||{})[c];return v?`<td>${fmtShort(v)}</td>`:`<td style="color:var(--border)">—</td>`;}).join('')}
-      <td class="total-col">${fmtShort(total)}</td>
-      <td class="avg-col">${fmtShort(avg)}</td>
+      ${monthsPresent.map(m=>{const v=(idx[m]||{})[c];return v?`<td>${fmt(v)}</td>`:`<td style="color:var(--border)">—</td>`;}).join('')}
+      <td class="total-col">${fmt(total)}</td>
+      <td class="avg-col">${fmt(avg)}</td>
       <td class="share-col">${share}%</td>
       <td class="avg-col">${prevAvgStr}</td>
       <td style="font-size:12px;font-weight:600;${deltaStyle}">${delta}</td></tr>`;
@@ -964,11 +964,11 @@ function renderYearSection(type, containerId) {
   const prevGrandMonths = prevMonths.length || 1;
   const prevGrandAvgVal = prevGrandTotal / prevGrandMonths;
   html+=`<tr class="sep"><td>ИТОГО</td>
-    ${monthsPresent.map(m=>`<td>${fmtShort(monthTotals[m])}</td>`).join('')}
-    <td class="total-col">${fmtShort(grandTotal)}</td>
-    <td class="avg-col">${fmtShort(grandTotal/monthsPresent.length)}</td>
+    ${monthsPresent.map(m=>`<td>${fmt(monthTotals[m])}</td>`).join('')}
+    <td class="total-col">${fmt(grandTotal)}</td>
+    <td class="avg-col">${fmt(grandTotal/monthsPresent.length)}</td>
     <td></td>
-    <td class="avg-col">${prevGrandAvgVal>0?fmtShort(prevGrandAvgVal):'—'}</td>
+    <td class="avg-col">${prevGrandAvgVal>0?fmt(prevGrandAvgVal):'—'}</td>
     <td style="font-size:12px;font-weight:700;${totalDeltaStyle}">${totalDelta}</td></tr>`;
   html+='</tbody></table>';
   container.innerHTML=html;
