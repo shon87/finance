@@ -637,6 +637,12 @@ async function loadTransactionsFull() {
     const r = await apiGet({action:'getTransactions'});
     S.transactions = (r.data||[]).map(t=>({...t, amount: parseFloat(t.amount)||0, date: String(t.date).substring(0,10)}));
     S.transactionsLoaded = 'full';
+    // если данных нет за текущий год — переключаемся на последний год с данными
+    const years = [...new Set(S.transactions.map(t=>t.date.substring(0,4)))].sort();
+    if (years.length) {
+      if (!years.includes(String(S.viewYear))) { S.viewYear = +years[years.length-1]; updateYearLabel(); }
+      if (!years.includes(String(S.dashYear))) { S.dashYear = +years[years.length-1]; updateMonthLabel(); }
+    }
     renderDashboard(); renderYearTable(); renderDynamics(); renderHistory();
   } catch(e){}
 }
