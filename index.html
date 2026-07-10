@@ -506,11 +506,7 @@
         <button class="btn btn-primary btn-sm" onclick="saveUrl()" style="white-space:nowrap">Сохранить</button>
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-      <button class="btn btn-primary" onclick="testConnection()" style="width:auto;padding:8px 18px">Проверить подключение</button>
-      <button class="btn btn-ghost" onclick="showTour()" style="width:auto;padding:8px 18px">📖 Обучение</button>
-      <button id="demo-toggle-settings" class="btn btn-ghost" style="width:auto;padding:8px 18px;display:none" onclick="toggleDemo()">🧪 Демо-данные</button>
-    </div>
+    <button class="btn btn-primary" onclick="testConnection()" style="width:auto;padding:8px 18px">Проверить подключение</button>
     <div id="conn-status" style="margin-top:10px;font-size:13px;color:var(--text2)"></div>
   </div>
 
@@ -535,8 +531,9 @@
         ✅ После сохранения приложение перезагрузится с вашими данными. 
         Все данные хранятся только в вашей таблице — автор сервиса их не видит.
       </div>
-      <div style="margin-top:12px;text-align:center">
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="showTour()">🎓 Повторить тур</button>
+        <button id="demo-toggle-settings" class="btn btn-ghost btn-sm" style="display:none" onclick="toggleDemo()">🧪 Демо-данные</button>
       </div>
     </div>
   </div>
@@ -779,7 +776,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateMonthLabel(); updateYearLabel();
   const realUrl = localStorage.getItem('real_api_url');
   if (realUrl) document.getElementById('settings-url').value = realUrl;
-  document.getElementById('demo-toggle').style.display = realUrl ? 'inline-block' : 'none';
   updateDemoBanner();
   showPage('dashboard');
   loadAll();
@@ -1906,7 +1902,6 @@ function saveUrl(){
   S.isDemo = false;
   localStorage.removeItem('demo_mode');
   showToast('URL сохранён','success');
-  document.getElementById('demo-toggle').style.display = 'inline-block';
   updateDemoBanner();
   loadAll();
 }
