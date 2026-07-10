@@ -184,6 +184,20 @@
     .tx-amount.expense { color: var(--expense); }
     .tx-del { background: transparent; border: none; color: var(--text2); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
     .tx-del:hover { color: var(--danger); }
+    .tx-item { cursor: pointer; }
+    .tx-item:hover { border-color: var(--accent); }
+
+    /* EDIT MODAL */
+    .edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center; }
+    .edit-overlay.show { display: flex; }
+    .edit-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 440px; width: 90%; padding: 24px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); max-height: 90vh; overflow-y: auto; }
+    .edit-modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .edit-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .edit-actions .btn { flex: 1; }
+
+    /* CSV */
+    .csv-btn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text2); cursor: pointer; padding: 5px 10px; font-size: 12px; white-space: nowrap; }
+    .csv-btn:hover { border-color: var(--accent); color: var(--accent); }
 
     /* BALANCE */
     .balance-header { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
@@ -426,7 +440,9 @@
   <div class="card">
     <div class="section-header">
       <div class="card-title" style="margin:0">Транзакции</div>
-      <select class="form-input" style="width:auto;padding:5px 10px" id="history-filter" onchange="renderHistory()">
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="csv-btn" onclick="exportCSV()">CSV</button>
+        <select class="form-input" style="width:auto;padding:5px 10px" id="history-filter" onchange="renderHistory()">
         <option value="all">Все</option>
         <option value="expense">Расходы</option>
         <option value="income">Доходы</option>
@@ -602,7 +618,7 @@
       <div class="tour-step"><b>Год</b> — сводка за год с колонками Итого, Среднее, Доля, Δ% к прошлому году.</div>
       <div class="tour-step"><b>Динамика</b> — график доходов/расходов/капитала за выбранный период.</div>
       <div class="tour-step"><b>+ Запись</b> — добавить доход или расход. Можно вводить выражения (10+5).</div>
-      <div class="tour-step"><b>История</b> — все транзакции с фильтром по дате и типу.</div>
+      <div class="tour-step"><b>История</b> — все транзакции с фильтром по дате и типу. Клик по строке — редактировать.</div>
       <div class="tour-step"><b>Баланс</b> — активы, пассивы, чистый капитал. Ежемесячные снимки.</div>
       <div class="tour-step"><b>Настройки</b> — подключить свою таблицу, настроить расчёт капитала.</div>
     </div>
@@ -620,6 +636,44 @@
         <button class="tour-btn-outline tour-btn" onclick="tourClose()" style="margin-right:8px">Закрыть</button>
         <button class="tour-btn" onclick="tourNext()">Далее →</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT TRANSACTION MODAL -->
+<div class="edit-overlay" id="edit-overlay">
+  <div class="edit-modal">
+    <div class="edit-modal-title">Редактировать транзакцию</div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <div class="form-label">Тип операции</div>
+        <div class="type-toggle">
+          <div class="type-btn" id="edit-btn-expense" onclick="editSetType('expense')">Расход</div>
+          <div class="type-btn" id="edit-btn-income" onclick="editSetType('income')">Доход</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="form-label">Дата</div>
+        <input type="date" class="form-input" id="edit-date">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Сумма</div>
+        <input type="text" class="form-input" id="edit-amount" placeholder="0" oninput="editCalcAmount()">
+        <div class="calc-hint" id="edit-calc-hint"></div>
+      </div>
+      <div class="form-group full">
+        <div class="form-label">Категория</div>
+        <div class="chips" id="edit-categories-grid"></div>
+      </div>
+      <div class="form-group full">
+        <div class="form-label">Комментарий</div>
+        <input type="text" class="form-input" id="edit-comment" placeholder="Заметка...">
+      </div>
+    </div>
+    <div class="edit-actions">
+      <button class="btn btn-primary" onclick="saveEditTx()">Сохранить</button>
+      <button class="btn" style="background:var(--surface2);color:var(--text2)" onclick="closeEditTx()">Отмена</button>
+      <button class="btn" style="background:transparent;color:var(--danger);border:1px solid var(--danger)" onclick="deleteEditTx()">Удалить</button>
     </div>
   </div>
 </div>
@@ -692,6 +746,7 @@ const S = {
   balanceFilter: 'type', transactionsLoaded: 'none', dynamicsMonths: 12,
   chartExpense: null, chartIncome: null, chartDynamics: null,
   isDemo: false,
+  editType: 'expense', editCategory: null,
 };
 
 const DEMO_API_URL = 'https://script.google.com/macros/s/AKfycbxgPGnOdn48TfjyYya_RzcnTOAiZel3pu7_PH9MmFHLC_T9_HplcVznw6IlE0g2If1Q/exec';
@@ -1350,11 +1405,11 @@ function renderHistory() {
   const listEl=document.getElementById('history-list');
   if(!sorted.length){listEl.innerHTML='<div class="empty">Нет транзакций</div>';}
   else{listEl.innerHTML='<div class="tx-list">'+sorted.map(t=>`
-    <div class="tx-item">
+    <div class="tx-item" onclick="openEditTx(${t._rowIndex})">
       <div class="tx-left"><div class="tx-cat">${t.category}</div><div class="tx-meta">${fmtDate(t.date)}${t.comment?' · '+t.comment:''}</div></div>
       <div class="tx-right">
         <div class="tx-amount ${t.type}">${t.type==='income'?'+':'−'}${fmt(t.amount)}</div>
-        <button class="tx-del" onclick="deleteTx(${t._rowIndex})">×</button>
+        <button class="tx-del" onclick="event.stopPropagation();deleteTx(${t._rowIndex})">×</button>
       </div>
     </div>`).join('')+'</div>';}
 
@@ -1366,9 +1421,133 @@ function renderHistory() {
     ||'<tr><td colspan="3" style="color:var(--text2);text-align:center">Нет данных</td></tr>';
 }
 async function deleteTx(rowIndex) {
+  if (S.isDemo) return showToast('В демо-режиме редактирование недоступно', 'error');
   if(!confirm('Удалить транзакцию?'))return;
   try{await apiPost({action:'deleteTransaction',rowIndex});showToast('Удалено','success');await loadTransactions();}
   catch(e){showToast('Ошибка','error');}
+}
+
+// ============================================================
+// EDIT TRANSACTION
+// ============================================================
+let _editRowIndex = null;
+
+function openEditTx(rowIndex) {
+  if (S.isDemo) return showToast('В демо-режиме редактирование недоступно', 'error');
+  const t = S.transactions.find(x => x._rowIndex === rowIndex);
+  if (!t) return showToast('Транзакция не найдена', 'error');
+  _editRowIndex = rowIndex;
+  document.getElementById('edit-date').value = t.date;
+  document.getElementById('edit-amount').value = t.amount;
+  document.getElementById('edit-comment').value = t.comment || '';
+  document.getElementById('edit-calc-hint').textContent = '';
+  editSetType(t.type);
+  renderEditCategories(t.category);
+  document.getElementById('edit-overlay').classList.add('show');
+}
+
+function closeEditTx() {
+  document.getElementById('edit-overlay').classList.remove('show');
+  _editRowIndex = null;
+}
+
+function editSetType(type) {
+  S.editType = type;
+  ['expense','income'].forEach(t => {
+    const el = document.getElementById('edit-btn-' + t);
+    el.className = 'type-btn' + (t === type ? ' active-' + t : '');
+  });
+  renderEditCategories(S.editCategory);
+}
+
+function renderEditCategories(selected) {
+  const grid = document.getElementById('edit-categories-grid');
+  const type = S.editType || 'expense';
+  const cats = S.categories.filter(c => c.type === type);
+  grid.innerHTML = cats.map(c =>
+    `<div class="chip${c.name === selected ? ' active' : ''}" onclick="selectEditCategory('${c.name}')">${c.name}</div>`
+  ).join('') || '<div style="font-size:12px;color:var(--text2)">Нет категорий</div>';
+  S.editCategory = selected || null;
+}
+
+function selectEditCategory(name) {
+  S.editCategory = name;
+  document.querySelectorAll('#edit-categories-grid .chip').forEach(el => {
+    el.classList.toggle('active', el.textContent === name);
+  });
+}
+
+function editCalcAmount() {
+  const val = document.getElementById('edit-amount').value.trim();
+  const hint = document.getElementById('edit-calc-hint');
+  if (!val) { hint.textContent = ''; return; }
+  try {
+    const safe = val.replace(/[^0-9+\-*/().]/g, '');
+    const result = Function('"use strict";return (' + safe + ')')();
+    if (typeof result === 'number' && isFinite(result) && val.match(/[+\-*/]/)) {
+      hint.textContent = '= ' + fmt(result);
+    } else { hint.textContent = ''; }
+  } catch(e) { hint.textContent = ''; }
+}
+
+async function saveEditTx() {
+  const date = document.getElementById('edit-date').value;
+  const amountRaw = document.getElementById('edit-amount').value.trim();
+  const comment = document.getElementById('edit-comment').value;
+  if (!date) return showToast('Укажите дату', 'error');
+  if (!amountRaw) return showToast('Укажите сумму', 'error');
+  let amount;
+  try { amount = Function('"use strict";return (' + amountRaw.replace(',','.').replace(/[^0-9+\-*/().]/g,'') + ')')(); }
+  catch(e) { return showToast('Неверная сумма', 'error'); }
+  if (!amount || amount <= 0) return showToast('Сумма должна быть больше 0', 'error');
+  if (!S.editCategory) return showToast('Выберите категорию', 'error');
+  try {
+    await apiPost({
+      action: 'updateTransaction',
+      rowIndex: _editRowIndex,
+      date, type: S.editType, category: S.editCategory, amount, comment
+    });
+    showToast('Сохранено', 'success');
+    closeEditTx();
+    await loadTransactions();
+  } catch(e) { showToast('Ошибка', 'error'); }
+}
+
+async function deleteEditTx() {
+  if (!confirm('Удалить транзакцию?')) return;
+  try {
+    await apiPost({ action: 'deleteTransaction', rowIndex: _editRowIndex });
+    showToast('Удалено', 'success');
+    closeEditTx();
+    await loadTransactions();
+  } catch(e) { showToast('Ошибка', 'error'); }
+}
+
+// ============================================================
+// CSV EXPORT
+// ============================================================
+function exportCSV() {
+  const filter = document.getElementById('history-filter')?.value || 'all';
+  let filtered = filterByPeriod(S.transactions, S.histPeriod);
+  if (filter !== 'all') filtered = filtered.filter(t => t.type === filter);
+  const sorted = [...filtered].sort((a, b) => b.date.localeCompare(a.date));
+  if (!sorted.length) return showToast('Нет данных за период', 'error');
+
+  const header = 'Дата;Тип;Категория;Сумма;Комментарий';
+  const rows = sorted.map(t =>
+    [t.date, t.type === 'income' ? 'Доход' : 'Расход', t.category, String(t.amount).replace('.', ','), t.comment || ''].join(';')
+  );
+  // BOM for Excel UTF-8
+  const bom = '\uFEFF';
+  const csv = bom + header + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'finance_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV скачан', 'success');
 }
 
 // ============================================================
