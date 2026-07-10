@@ -85,6 +85,9 @@
     /* STATS */
     .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
     .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+
+    @media (max-width: 500px) { .stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; } .stat-card { padding: 8px 10px; } .stat-value { font-size: 15px; } }
+    @media (min-width: 501px) and (max-width: 899px) { .stats-row { grid-template-columns: repeat(4, 1fr); } }
     .stat-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
     .stat-value { font-size: 17px; font-weight: 700; }
     .c-income { color: var(--income); } .c-expense { color: var(--expense); }
@@ -562,9 +565,25 @@
   </div>
 
   <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div class="card-title" style="margin-bottom:0">Обучение</div>
       <button class="btn btn-primary btn-sm" onclick="showTour()">Повторить тур</button>
+    </div>
+    <div style="font-size:13px;line-height:1.7;color:var(--text2)">
+      <div style="font-weight:600;color:var(--text);margin-bottom:8px">Как подключить свою таблицу</div>
+      <ol style="padding-left:20px;margin:0">
+        <li>Откроется ваша копия таблицы с предустановленным скриптом</li>
+        <li>В этой копии: Расширения → Apps Script</li>
+        <li>Синяя кнопка «Развернуть» → «Новое развертывание» → «Веб-приложение»</li>
+        <li>В поле «Доступ» выберите: «Все, у кого есть ссылка» → «Развернуть»</li>
+        <li>Скопируйте появившуюся ссылку (начинается с <code style="color:var(--text)">https://script.google.com/...</code>)</li>
+        <li>Вставьте ссылку в поле «URL Apps Script» выше и нажмите «Сохранить»</li>
+      </ol>
+      <a href="https://docs.google.com/spreadsheets/d/1P8Tfu3L-twQIE2VhfU6XwFsys3oC3yQpWrUB4SoezcU/copy" target="_blank" style="display:block;text-align:center;padding:10px;margin:12px 0;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:600">📋 Создать свою таблицу</a>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px;font-size:12px">
+        ✅ После сохранения приложение перезагрузится с вашими данными. 
+        Все данные хранятся только в вашей таблице — автор сервиса их не видит.
+      </div>
     </div>
   </div>
 </div>
