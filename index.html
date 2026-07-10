@@ -660,23 +660,11 @@ function tourShow() {
   const nextBtn = document.querySelector('.tour-footer .tour-btn:last-child');
   const isFinal = s.final;
   if (isFinal) {
-    nextBtn.textContent = '🎓 Обучение';
+    nextBtn.textContent = '📋 Инструкция';
     nextBtn.onclick = () => { tourClose(); showPage('settings'); setTimeout(toggleLearn, 300); };
-    // добавляем кнопку закрыть слева
-    const footer = document.querySelector('.tour-footer');
-    const existing = footer.querySelector('.tour-close-btn');
-    if (!existing) {
-      const btn = document.createElement('button');
-      btn.className = 'tour-btn-outline tour-btn tour-close-btn';
-      btn.textContent = '✕ Закрыть';
-      btn.onclick = tourClose;
-      footer.querySelector('div').before(btn);
-    }
   } else {
     nextBtn.textContent = 'Далее →';
     nextBtn.onclick = tourNext;
-    const extra = document.querySelector('.tour-footer .tour-close-btn');
-    if (extra) extra.remove();
   }
   document.getElementById('tour-overlay').classList.add('show');
 }
