@@ -494,6 +494,34 @@
     <button class="btn btn-primary" onclick="testConnection()" style="width:auto;padding:8px 18px">Проверить подключение</button>
     <div id="conn-status" style="margin-top:10px;font-size:13px;color:var(--text2)"></div>
   </div>
+
+  <div class="card">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleLearn()">
+      <span>📋 Обучение</span>
+      <span id="learn-arrow" style="font-size:12px;color:var(--text2)">▸</span>
+    </div>
+    <div id="learn-block" style="display:none;font-size:13px;line-height:1.7;color:var(--text2)">
+      <div style="font-weight:600;color:var(--text);margin-bottom:8px;margin-top:12px">Как подключить свою таблицу</div>
+      <div style="padding:8px 12px;background:rgba(252,129,129,0.1);border-radius:8px;font-size:12px;margin-bottom:10px">⚠️ Настройка возможна только с компьютера. С телефона и планшета редактор скриптов не открывается.</div>
+      <ol style="padding-left:20px;margin:0">
+        <li>Откроется ваша копия таблицы с предустановленным скриптом</li>
+        <li>В этой копии на компьютере: Расширения → Apps Script</li>
+        <li>Синяя кнопка «Развернуть» → «Новое развертывание» → «Веб-приложение»</li>
+        <li>В поле «Доступ» выберите: «Все, у кого есть ссылка» → «Развернуть»</li>
+        <li>Скопируйте появившуюся ссылку (начинается с <code style="color:var(--text)">https://script.google.com/...</code>)</li>
+        <li>Вставьте ссылку в поле «URL Apps Script» выше и нажмите «Сохранить»</li>
+      </ol>
+      <a href="https://docs.google.com/spreadsheets/d/1P8Tfu3L-twQIE2VhfU6XwFsys3oC3yQpWrUB4SoezcU/copy" target="_blank" style="display:block;text-align:center;padding:10px;margin:12px 0;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:600">📋 Создать свою таблицу</a>
+      <div style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px;font-size:12px">
+        ✅ После сохранения приложение перезагрузится с вашими данными. 
+        Все данные хранятся только в вашей таблице — автор сервиса их не видит.
+      </div>
+      <div style="margin-top:12px;text-align:center">
+        <button class="btn btn-primary btn-sm" onclick="showTour()">🎓 Повторить тур</button>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title">Расчёт капитала</div>
     <select class="form-input" id="setting-capital" onchange="saveSetting('capital_calculation',this.value)">
@@ -563,29 +591,6 @@
       </div>
     </div>
   </div>
-
-  <div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <div class="card-title" style="margin-bottom:0">Обучение</div>
-      <button class="btn btn-primary btn-sm" onclick="showTour()">Повторить тур</button>
-    </div>
-    <div style="font-size:13px;line-height:1.7;color:var(--text2)">
-      <div style="font-weight:600;color:var(--text);margin-bottom:8px">Как подключить свою таблицу</div>
-      <ol style="padding-left:20px;margin:0">
-        <li>Откроется ваша копия таблицы с предустановленным скриптом</li>
-        <li>В этой копии: Расширения → Apps Script</li>
-        <li>Синяя кнопка «Развернуть» → «Новое развертывание» → «Веб-приложение»</li>
-        <li>В поле «Доступ» выберите: «Все, у кого есть ссылка» → «Развернуть»</li>
-        <li>Скопируйте появившуюся ссылку (начинается с <code style="color:var(--text)">https://script.google.com/...</code>)</li>
-        <li>Вставьте ссылку в поле «URL Apps Script» выше и нажмите «Сохранить»</li>
-      </ol>
-      <a href="https://docs.google.com/spreadsheets/d/1P8Tfu3L-twQIE2VhfU6XwFsys3oC3yQpWrUB4SoezcU/copy" target="_blank" style="display:block;text-align:center;padding:10px;margin:12px 0;border-radius:8px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:600">📋 Создать свою таблицу</a>
-      <div style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px;font-size:12px">
-        ✅ После сохранения приложение перезагрузится с вашими данными. 
-        Все данные хранятся только в вашей таблице — автор сервиса их не видит.
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- TOUR MODAL -->
@@ -623,6 +628,16 @@
 // ============================================================
 // TOUR
 // ============================================================
+function toggleLearn() {
+  const block = document.getElementById('learn-block');
+  const arrow = document.getElementById('learn-arrow');
+  const isOpen = block.style.display !== 'none';
+  block.style.display = isOpen ? 'none' : 'block';
+  arrow.textContent = isOpen ? '▸' : '▾';
+  // если блок открыт — скролл к нему
+  if (!isOpen) setTimeout(() => document.getElementById('learn-block').scrollIntoView({behavior:'smooth', block:'center'}), 100);
+}
+
 const TOUR_STEPS = [
   { title: '📊 Месяц', text: 'Отслеживайте расходы и доходы по категориям за выбранный месяц. График и таблица.' },
   { title: '📅 Год', text: 'Анализируйте сводку за год: Итого, Среднее, Доля, Δ% к прошлому.' },
@@ -631,6 +646,7 @@ const TOUR_STEPS = [
   { title: '📋 История', text: 'Просматривайте историю операций с фильтром по дате и типу. Сводка по категориям сверху.' },
   { title: '💰 Баланс', text: 'Следите за активами, пассивами и чистым капиталом. Раз в месяц вносите снимки.' },
   { title: '⚙️ Настройки', text: 'Подключите свою таблицу, настройте расчёт капитала и справочники.' },
+  { title: '🎉 Готово!', text: 'Начните с демо-данных. Чтобы подключить свою таблицу — нужен компьютер (настройка один раз).', final: true },
 ];
 
 let TOUR_STEP = 0;
@@ -642,13 +658,31 @@ function tourShow() {
   document.getElementById('tour-content').innerHTML = `<div class="tour-step">${s.text}</div>`;
   document.querySelectorAll('.tour-dot').forEach((d, i) => d.classList.toggle('active', i === TOUR_STEP));
   const nextBtn = document.querySelector('.tour-footer .tour-btn:last-child');
-  nextBtn.textContent = TOUR_STEP === TOUR_TOTAL - 1 ? 'Готово' : 'Далее →';
+  const isFinal = s.final;
+  if (isFinal) {
+    nextBtn.textContent = '🎓 Обучение';
+    nextBtn.onclick = () => { tourClose(); showPage('settings'); setTimeout(toggleLearn, 300); };
+    // добавляем кнопку закрыть слева
+    const footer = document.querySelector('.tour-footer');
+    const existing = footer.querySelector('.tour-close-btn');
+    if (!existing) {
+      const btn = document.createElement('button');
+      btn.className = 'tour-btn-outline tour-btn tour-close-btn';
+      btn.textContent = '✕ Закрыть';
+      btn.onclick = tourClose;
+      footer.querySelector('div').before(btn);
+    }
+  } else {
+    nextBtn.textContent = 'Далее →';
+    nextBtn.onclick = tourNext;
+    const extra = document.querySelector('.tour-footer .tour-close-btn');
+    if (extra) extra.remove();
+  }
   document.getElementById('tour-overlay').classList.add('show');
 }
 
 function tourNext() {
   if (TOUR_STEP < TOUR_TOTAL - 1) { TOUR_STEP++; tourShow(); }
-  else { tourClose(); }
 }
 
 function tourGo(n) { TOUR_STEP = n - 1; tourShow(); }
@@ -713,9 +747,9 @@ function updateDemoBanner() {
   const realUrl = localStorage.getItem('real_api_url');
   if (!realUrl) {
     banner.classList.add('show');
-    text.textContent = 'Подключи свою таблицу в настройках, чтобы сохранять свои данные.';
-    btn.textContent = 'Настроить';
-    btn.onclick = ()=>{ showPage('settings'); };
+    text.textContent = 'Подключи свою таблицу (нужен компьютер, один раз).';
+    btn.textContent = 'Как настроить';
+    btn.onclick = ()=>{ showPage('settings'); setTimeout(toggleLearn, 300); };
   } else if (S.isDemo) {
     banner.classList.add('show');
     text.textContent = 'Показываются демо-данные.';
