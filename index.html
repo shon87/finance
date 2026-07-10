@@ -25,7 +25,8 @@
       --accent: #6c63ff; --danger: #fc8181; --text: #e2e8f0; --text2: #8892a4;
       --income: #48bb78; --expense: #fc8181;
     }
-    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; overflow-x: hidden; }
+    *, *::before, *::after { max-width: 100%; }
 
     /* NAV */
     .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px; position: sticky; top: 0; z-index: 100; }
@@ -86,10 +87,11 @@
 
     /* STATS */
     .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; min-width: 0; overflow: hidden; }
+    .stat-value { font-size: 17px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    @media (max-width: 500px) { .stats-row { grid-template-columns: repeat(3, 1fr); gap: 6px; } .stat-card { padding: 8px 10px; } .stat-value { font-size: 15px; } }
-    @media (min-width: 501px) and (max-width: 899px) { .stats-row { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 500px) { .stats-row { grid-template-columns: repeat(2, 1fr); gap: 6px; } .stat-card { padding: 8px 10px; } .stat-value { font-size: 14px; } }
+    @media (min-width: 501px) and (max-width: 899px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
     .stat-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
     .stat-value { font-size: 17px; font-weight: 700; }
     .c-income { color: var(--income); } .c-expense { color: var(--expense); }
