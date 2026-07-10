@@ -260,7 +260,10 @@
     <button class="nav-tab" onclick="showPage('balance')">Баланс</button>
     <button class="nav-tab" onclick="showPage('settings')">Настройки</button>
   </div>
-  <button id="demo-toggle" class="nav-tab" style="display:none" onclick="toggleDemo()" title="Посмотреть демо-данные">🧪</button>
+  <div style="display:flex;gap:4px">
+    <button id="demo-toggle" class="nav-tab" style="display:none" onclick="toggleDemo()" title="Посмотреть демо-данные">🧪</button>
+    <button class="nav-tab" onclick="showTour()" title="Обучение">📖</button>
+  </div>
 </nav>
 
 <div class="toast" id="toast"></div>
@@ -602,13 +605,13 @@
 // TOUR
 // ============================================================
 const TOUR_STEPS = [
-  { title: '📊 Месяц', text: 'Расходы и доходы по категориям за выбранный месяц. График и таблица.' },
-  { title: '📅 Год', text: 'Сводка за год: Итого, Среднее, Доля, Δ% к прошлому году. Sticky-шапка.' },
-  { title: '📈 Динамика', text: 'График доходов, расходов и капитала за период. Фильтр 1 год / 2 года / Всё.' },
-  { title: '✏️ + Запись', text: 'Добавить доход или расход. Можно вводить выражения (10+5), выбирать категорию.' },
-  { title: '📋 История', text: 'Все транзакции с фильтром по дате и типу. Сводка по категориям сверху.' },
-  { title: '💰 Баланс', text: 'Активы, пассивы, чистый капитал. Ежемесячные снимки стоимости.' },
-  { title: '⚙️ Настройки', text: 'Подключить свою таблицу, настроить расчёт капитала, справочники.' },
+  { title: '📊 Месяц', text: 'Отслеживайте расходы и доходы по категориям за выбранный месяц. График и таблица.' },
+  { title: '📅 Год', text: 'Анализируйте сводку за год: Итого, Среднее, Доля, Δ% к прошлому.' },
+  { title: '📈 Динамика', text: 'Следите за графиками доходов, расходов и капитала. Фильтр: 1 год / 2 года / Всё время.' },
+  { title: '✏️ + Запись', text: 'Вносите доходы и расходы. Можно вводить выражения (10+5). Убедитесь, что в настройках созданы категории.' },
+  { title: '📋 История', text: 'Просматривайте историю операций с фильтром по дате и типу. Сводка по категориям сверху.' },
+  { title: '💰 Баланс', text: 'Следите за активами, пассивами и чистым капиталом. Раз в месяц вносите снимки.' },
+  { title: '⚙️ Настройки', text: 'Подключите свою таблицу, настройте расчёт капитала и справочники.' },
 ];
 
 let TOUR_STEP = 0;
@@ -1276,7 +1279,7 @@ async function submitTransaction() {
   if(!date)return showToast('Укажите дату','error');
   if(!amountRaw)return showToast('Укажите сумму','error');
   let amount;
-  try { amount=Function('"use strict";return ('+amountRaw.replace(/[^0-9+\-*/().]/g,'')+')')(); } catch(e){return showToast('Неверная сумма','error');}
+  try { amount=Function('"use strict";return ('+amountRaw.replace(',','.').replace(/[^0-9+\-*/().]/g,'')+')')(); } catch(e){return showToast('Неверная сумма','error');}
   if(!amount||amount<=0)return showToast('Сумма должна быть больше 0','error');
   if(!S.selectedCategory)return showToast('Выберите категорию','error');
   try {
@@ -1615,7 +1618,7 @@ async function saveOneAsset(positionId) {
   const raw = input.value.trim();
   if (!raw) return;
   let amount;
-  try { amount = Function('"use strict";return (' + raw.replace(/[^0-9+\-*/().]/g,'') + ')')(); }
+  try { amount = Function('"use strict";return (' + raw.replace(',','.').replace(/[^0-9+\-*/().]/g,'') + ')')(); }
   catch(e) { return showToast('Неверная сумма', 'error'); }
   if (isNaN(amount) || amount < 0) return showToast('Неверная сумма', 'error');
 
@@ -1654,7 +1657,7 @@ async function submitAllAssets() {
     const raw = input.value.trim();
     if (!raw) continue;
     let amount;
-    try { amount = Function('"use strict";return (' + raw.replace(/[^0-9+\-*/().]/g,'') + ')')(); }
+    try { amount = Function('"use strict";return (' + raw.replace(',','.').replace(/[^0-9+\-*/().]/g,'') + ')')(); }
     catch(e) { continue; }
     if (isNaN(amount) || amount < 0) continue;
     tasks.push({ positionId: p.id, amount });
