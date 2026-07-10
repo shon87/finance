@@ -443,13 +443,14 @@
       <div style="display:flex;gap:6px;align-items:center">
         <button class="csv-btn" onclick="exportCSV()">CSV</button>
         <select class="form-input" style="width:auto;padding:5px 10px" id="history-filter" onchange="renderHistory()">
-        <option value="all">Все</option>
-        <option value="expense">Расходы</option>
-        <option value="income">Доходы</option>
-      </select>
+          <option value="all">Все</option>
+          <option value="expense">Расходы</option>
+          <option value="income">Доходы</option>
+        </select>
+      </div>
     </div>
+    <div id="history-list"><div class="loader">Загрузка...</div></div>
   </div>
-  <div id="history-list"><div class="loader">Загрузка...</div></div>
 </div>
 
 <!-- ===================== БАЛАНС ===================== -->
@@ -936,27 +937,12 @@ async function loadSettings() {
   try {
     const r = await apiGet({action:'getSettings'});
     S.settings = r.data||{};
+    applySettings();
   } catch(e){ errToast(e, 'настроек'); }
 }
 
-function renderAssets() {
-  renderBalance();
-}
-async function loadPositions() {
-  try {
-    const r = await apiGet({action:'getPositions'});
-    S.positions = r.data||[];
-    renderPositionsList();
-    renderAssetInputList();
-    renderDashboard();
-    renderBalance();
-  } catch(e){}
-}
 async function loadAccounts() {
   try { const r = await apiGet({action:'getAccounts'}); S.accounts = r.data||[]; } catch(e){}
-}
-async function loadSettings() {
-  try { const r = await apiGet({action:'getSettings'}); S.settings = r.data||{}; applySettings(); } catch(e){}
 }
 function applySettings() {
   const g = id => document.getElementById(id);
