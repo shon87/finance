@@ -38,6 +38,35 @@
     .toast { position: fixed; top: 52px; left: 0; right: 0; height: 3px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast.show { opacity: 1; }
     .toast.success { background: var(--income); }
+
+    /* DEMO BANNER */
+    .demo-banner { display: none; align-items: center; gap: 12px; position: sticky; top: 52px; z-index: 99; padding: 8px 16px; background: #2d1b69; border-bottom: 1px solid var(--accent); font-size: 13px; }
+    .demo-banner.show { display: flex; }
+    .demo-banner-icon { font-size: 18px; }
+    .demo-banner-text { flex: 1; color: var(--text); }
+    .demo-banner-btn { padding: 4px 12px; border-radius: 6px; border: 1px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; white-space: nowrap; }
+    .demo-banner-btn:hover { background: var(--accent); color: #fff; }
+
+    /* TOUR */
+    .tour-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; display: none; align-items: center; justify-content: center; }
+    .tour-overlay.show { display: flex; }
+    .tour-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 440px; width: 90%; padding: 28px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+    .tour-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+    .tour-step { font-size: 14px; line-height: 1.6; margin-bottom: 12px; color: var(--text); }
+    .tour-step b { color: var(--accent); }
+    .tour-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+    .tour-dots { display: flex; gap: 6px; }
+    .tour-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); cursor: pointer; }
+    .tour-dot.active { background: var(--accent); }
+    .tour-btn { padding: 8px 20px; border-radius: 8px; border: none; background: var(--accent); color: #fff; cursor: pointer; font-size: 13px; }
+    .tour-btn:hover { opacity: 0.85; }
+    .tour-btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .tour-btn-outline:hover { background: var(--surface2); }
+
+    /* SPINNER */
+    .loader { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 32px 0; color: var(--text2); font-size: 13px; }
+    .loader::before { content: ''; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .toast.error { background: var(--danger); }
     .toast-label { position: fixed; top: 58px; right: 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; font-size: 12px; z-index: 999; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
     .toast-label.show { opacity: 1; }
@@ -231,10 +260,16 @@
     <button class="nav-tab" onclick="showPage('balance')">Баланс</button>
     <button class="nav-tab" onclick="showPage('settings')">Настройки</button>
   </div>
+  <button id="demo-toggle" class="nav-tab" style="display:none" onclick="toggleDemo()" title="Посмотреть демо-данные">🧪</button>
 </nav>
 
 <div class="toast" id="toast"></div>
 <div class="toast-label" id="toast-label"></div>
+<div class="demo-banner" id="demo-banner">
+  <span class="demo-banner-icon">🧪</span>
+  <span class="demo-banner-text" id="demo-banner-text"></span>
+  <button class="demo-banner-btn" id="demo-banner-action"></button>
+</div>
 
 <!-- ===================== МЕСЯЦ ===================== -->
 <div class="page active" id="page-dashboard">
@@ -522,22 +557,100 @@
       </div>
     </div>
   </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div class="card-title" style="margin-bottom:0">Обучение</div>
+      <button class="btn btn-primary btn-sm" onclick="showTour()">Повторить тур</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOUR MODAL -->
+<div class="tour-overlay" id="tour-overlay">
+  <div class="tour-modal">
+    <div class="tour-title" id="tour-title">🚀 Добро пожаловать!</div>
+    <div id="tour-content">
+      <div class="tour-step"><b>Месяц</b> — расходы и доходы по категориям за выбранный месяц. График и таблица.</div>
+      <div class="tour-step"><b>Год</b> — сводка за год с колонками Итого, Среднее, Доля, Δ% к прошлому году.</div>
+      <div class="tour-step"><b>Динамика</b> — график доходов/расходов/капитала за выбранный период.</div>
+      <div class="tour-step"><b>+ Запись</b> — добавить доход или расход. Можно вводить выражения (10+5).</div>
+      <div class="tour-step"><b>История</b> — все транзакции с фильтром по дате и типу.</div>
+      <div class="tour-step"><b>Баланс</b> — активы, пассивы, чистый капитал. Ежемесячные снимки.</div>
+      <div class="tour-step"><b>Настройки</b> — подключить свою таблицу, настроить расчёт капитала.</div>
+    </div>
+    <div class="tour-footer">
+      <div class="tour-dots">
+        <span class="tour-dot active" onclick="tourGo(1)"></span>
+        <span class="tour-dot" onclick="tourGo(2)"></span>
+        <span class="tour-dot" onclick="tourGo(3)"></span>
+        <span class="tour-dot" onclick="tourGo(4)"></span>
+        <span class="tour-dot" onclick="tourGo(5)"></span>
+        <span class="tour-dot" onclick="tourGo(6)"></span>
+        <span class="tour-dot" onclick="tourGo(7)"></span>
+      </div>
+      <div>
+        <button class="tour-btn-outline tour-btn" onclick="tourClose()" style="margin-right:8px">Закрыть</button>
+        <button class="tour-btn" onclick="tourNext()">Далее →</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
 // ============================================================
+// TOUR
+// ============================================================
+const TOUR_STEPS = [
+  { title: '📊 Месяц', text: 'Расходы и доходы по категориям за выбранный месяц. График и таблица.' },
+  { title: '📅 Год', text: 'Сводка за год: Итого, Среднее, Доля, Δ% к прошлому году. Sticky-шапка.' },
+  { title: '📈 Динамика', text: 'График доходов, расходов и капитала за период. Фильтр 1 год / 2 года / Всё.' },
+  { title: '✏️ + Запись', text: 'Добавить доход или расход. Можно вводить выражения (10+5), выбирать категорию.' },
+  { title: '📋 История', text: 'Все транзакции с фильтром по дате и типу. Сводка по категориям сверху.' },
+  { title: '💰 Баланс', text: 'Активы, пассивы, чистый капитал. Ежемесячные снимки стоимости.' },
+  { title: '⚙️ Настройки', text: 'Подключить свою таблицу, настроить расчёт капитала, справочники.' },
+];
+
+let TOUR_STEP = 0;
+const TOUR_TOTAL = TOUR_STEPS.length;
+
+function tourShow() {
+  const s = TOUR_STEPS[TOUR_STEP];
+  document.getElementById('tour-title').textContent = s.title;
+  document.getElementById('tour-content').innerHTML = `<div class="tour-step">${s.text}</div>`;
+  document.querySelectorAll('.tour-dot').forEach((d, i) => d.classList.toggle('active', i === TOUR_STEP));
+  const nextBtn = document.querySelector('.tour-footer .tour-btn:last-child');
+  nextBtn.textContent = TOUR_STEP === TOUR_TOTAL - 1 ? 'Готово' : 'Далее →';
+  document.getElementById('tour-overlay').classList.add('show');
+}
+
+function tourNext() {
+  if (TOUR_STEP < TOUR_TOTAL - 1) { TOUR_STEP++; tourShow(); }
+  else { tourClose(); }
+}
+
+function tourGo(n) { TOUR_STEP = n - 1; tourShow(); }
+function tourClose() {
+  document.getElementById('tour-overlay').classList.remove('show');
+  TOUR_STEP = 0;
+}
+function showTour() { TOUR_STEP = 0; tourShow(); }
+
+// ============================================================
 // STATE
 // ============================================================
 const S = {
-  apiUrl: localStorage.getItem('finance_api_url') || '',
+  apiUrl: '', // устанавливается в DOMContentLoaded через resolveApiUrl()
   transactions: [], categories: [], assets: [], positions: [], accounts: [],
   settings: {}, currentType: 'expense', selectedCategory: '',
   dashYear: new Date().getFullYear(), dashMonth: new Date().getMonth(),
   viewYear: new Date().getFullYear(), histPeriod: 'month',
   balanceFilter: 'type', transactionsLoaded: 'none', dynamicsMonths: 12,
   chartExpense: null, chartIncome: null, chartDynamics: null,
+  isDemo: false,
 };
 
+const DEMO_API_URL = 'https://script.google.com/macros/s/AKfycbxgPGnOdn48TfjyYya_RzcnTOAiZel3pu7_PH9MmFHLC_T9_HplcVznw6IlE0g2If1Q/exec';
 const BLOCK_LABELS = { account: 'Текущие счета', cushion: 'Подушка безопасности', bonds: 'Облигации', stocks: 'Акции', other: 'Прочее', passive: 'Пассивы' };
 const BLOCK_ORDER = ['account', 'cushion', 'bonds', 'stocks', 'other', 'passive'];
 const MONTH_NAMES = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
@@ -546,22 +659,52 @@ const COLORS = ['#6c63ff','#48bb78','#fc8181','#f6ad55','#63b3ed','#b794f4','#76
 // ============================================================
 // INIT
 // ============================================================
+function resolveApiUrl() {
+  const realUrl = localStorage.getItem('real_api_url');
+  const isDemo = !realUrl || localStorage.getItem('demo_mode') === 'true';
+  S.isDemo = isDemo;
+  return isDemo ? DEMO_API_URL : realUrl;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const today = localDateStr(new Date());
   document.getElementById('input-date').value = today;
   document.getElementById('asset-date').value = today;
+  S.apiUrl = resolveApiUrl();
   updateMonthLabel(); updateYearLabel();
-  if (S.apiUrl) {
-    document.getElementById('settings-url').value = S.apiUrl;
-    loadAll();
-  } else {
-    showPage('settings');
-    showToast('Укажите URL Apps Script в настройках', 'error');
+  const realUrl = localStorage.getItem('real_api_url');
+  if (realUrl) document.getElementById('settings-url').value = realUrl;
+  document.getElementById('demo-toggle').style.display = realUrl ? 'inline-block' : 'none';
+  updateDemoBanner();
+  showPage('dashboard');
+  loadAll();
+  if (!localStorage.getItem('tour_seen')) {
+    setTimeout(showTour, 500);
+    localStorage.setItem('tour_seen', '1');
   }
 });
 
+function updateDemoBanner() {
+  const banner = document.getElementById('demo-banner');
+  const text = document.getElementById('demo-banner-text');
+  const btn = document.getElementById('demo-banner-action');
+  const realUrl = localStorage.getItem('real_api_url');
+  if (!realUrl) {
+    banner.classList.add('show');
+    text.textContent = 'Подключи свою таблицу в настройках, чтобы сохранять свои данные.';
+    btn.textContent = 'Настроить';
+    btn.onclick = ()=>{ showPage('settings'); };
+  } else if (S.isDemo) {
+    banner.classList.add('show');
+    text.textContent = 'Показываются демо-данные.';
+    btn.textContent = 'Вернуться к моим данным';
+    btn.onclick = exitDemo;
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
 function loadAll() {
-  // быстрый старт: сначала текущий месяц + категории + позиции
   const now = new Date();
   const y = now.getFullYear();
   const m = pad(now.getMonth() + 1);
@@ -576,9 +719,28 @@ function loadAll() {
     loadPositions(),
     loadSettings(),
   ]).then(() => {
-    // после быстрой загрузки грузим все транзакции в фоне
     loadTransactionsFull();
   });
+}
+
+function exitDemo() {
+  localStorage.removeItem('demo_mode');
+  S.apiUrl = localStorage.getItem('real_api_url');
+  S.isDemo = false;
+  updateDemoBanner();
+  loadAll();
+}
+
+function toggleDemo() {
+  if (S.isDemo) {
+    exitDemo();
+  } else {
+    localStorage.setItem('demo_mode', 'true');
+    S.apiUrl = DEMO_API_URL;
+    S.isDemo = true;
+    updateDemoBanner();
+    loadAll();
+  }
 }
 
 // ============================================================
@@ -618,8 +780,13 @@ async function apiPost(data) {
 // ============================================================
 // LOAD
 // ============================================================
+async function errToast(e, label) {
+  if (e.name === 'AbortError') showToast('Таймаут при загрузке '+label, 'error');
+  else showToast('Ошибка при загрузке '+label, 'error');
+}
+
 async function loadCategories() {
-  try { const r = await apiGet({action:'getCategories'}); S.categories = r.data||[]; renderCategoryChips(); renderSettingsCategories(); } catch(e){}
+  try { const r = await apiGet({action:'getCategories'}); S.categories = r.data||[]; renderCategoryChips(); renderSettingsCategories(); } catch(e){ errToast(e, 'категорий'); }
 }
 // быстрая загрузка — только текущий месяц
 async function loadTransactionsFast(from, to) {
@@ -628,7 +795,7 @@ async function loadTransactionsFast(from, to) {
     S.transactions = (r.data||[]).map(t=>({...t, amount: parseFloat(t.amount)||0, date: String(t.date).substring(0,10)}));
     S.transactionsLoaded = 'partial';
     renderDashboard(); renderHistory();
-  } catch(e){}
+  } catch(e){ errToast(e, 'транзакций (быстрая)'); }
 }
 
 // полная загрузка — все данные, в фоне
@@ -644,7 +811,7 @@ async function loadTransactionsFull() {
       if (!years.includes(String(S.dashYear))) { S.dashYear = +years[years.length-1]; updateMonthLabel(); }
     }
     renderDashboard(); renderYearTable(); renderDynamics(); renderHistory();
-  } catch(e){}
+  } catch(e){ errToast(e, 'всех транзакций'); }
 }
 
 // совместимость — полная загрузка по запросу
@@ -657,7 +824,20 @@ async function loadAssets() {
     S.assets = (r.data||[]).map(a=>({...a, amount: parseFloat(a.amount)||0, date: String(a.date).substring(0,10)}));
     renderBalance();
     renderDashboard();
-  } catch(e){}
+  } catch(e){ errToast(e, 'активов'); }
+}
+async function loadPositions() {
+  try {
+    const r = await apiGet({action:'getPositions'});
+    S.positions = (r.data||[]).map(p=>({...p, active: p.active !== false}));
+    renderAssetSelect(); renderPositionsList(); renderBalance();
+  } catch(e){ errToast(e, 'позиций'); }
+}
+async function loadSettings() {
+  try {
+    const r = await apiGet({action:'getSettings'});
+    S.settings = r.data||{};
+  } catch(e){ errToast(e, 'настроек'); }
 }
 
 function renderAssets() {
@@ -1503,8 +1683,14 @@ async function submitAllAssets() {
 function saveUrl(){
   const url=document.getElementById('settings-url').value.trim();
   if(!url)return showToast('Введите URL','error');
-  S.apiUrl=url; localStorage.setItem('finance_api_url',url);
-  showToast('URL сохранён','success'); loadAll();
+  localStorage.setItem('real_api_url', url);
+  S.apiUrl = url;
+  S.isDemo = false;
+  localStorage.removeItem('demo_mode');
+  showToast('URL сохранён','success');
+  document.getElementById('demo-toggle').style.display = 'inline-block';
+  updateDemoBanner();
+  loadAll();
 }
 async function testConnection(){
   const el=document.getElementById('conn-status'); el.textContent='Проверяем...';
