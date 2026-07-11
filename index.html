@@ -367,8 +367,8 @@
 <!-- ===================== ДИНАМИКА ===================== -->
 <div class="page" id="page-dynamics">
   <div class="period-row period-row-sticky" id="dynamics-period-row">
-    <button class="period-btn active" onclick="setDynamicsPeriod(12,this)">1 год</button>
-    <button class="period-btn" onclick="setDynamicsPeriod(24,this)">2 года</button>
+    <input type="number" id="dynamics-years" min="1" value="1" class="form-input" style="width:60px;padding:5px 8px;font-size:13px" onchange="dynamicsPeriodInput()" title="Количество лет">
+    <span style="font-size:13px;color:var(--text2)">лет</span>
     <button class="period-btn" onclick="setDynamicsPeriod(0,this)">Всё время</button>
   </div>
   <div class="card">
@@ -476,6 +476,30 @@
   <div class="period-row" id="balance-filter-row">
     <button class="period-btn active" onclick="setBalanceFilter('type', this)">По типу</button>
     <button class="period-btn" onclick="setBalanceFilter('account', this)">По счёту</button>
+    <button class="period-btn" onclick="setBalanceFilter('history', this)">Отчёт ▸</button>
+  </div>
+
+  <!-- Фильтр снимков (только в режиме history) -->
+  <div id="snapshot-filter" style="display:none">
+    <div class="period-row">
+      <input type="number" id="snap-years" min="1" value="2" class="form-input" style="width:60px;padding:5px 8px;font-size:13px" onchange="snapPeriodInput()" title="Количество лет">
+      <span style="font-size:13px;color:var(--text2)">лет</span>
+      <button class="period-btn" onclick="setSnapPeriod(0,this)">Всё время</button>
+      <label style="margin-left:auto;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="snap-hide-empty" checked onchange="renderBalanceChart()"> скрыть пустые
+      </label>
+      <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;cursor:pointer">
+        <input type="checkbox" id="snap-delta" onchange="renderBalanceChart()"> прирост, %
+      </label>
+    </div>
+    <div class="period-row" style="margin-top:-8px">
+      <span style="font-size:12px;color:var(--text2);margin-right:4px">Тип:</span>
+      <div class="chips" id="snap-block-chips"></div>
+    </div>
+    <div class="period-row" style="margin-top:-8px">
+      <span style="font-size:12px;color:var(--text2);margin-right:4px">Счёт:</span>
+      <div class="chips" id="snap-account-chips"></div>
+    </div>
   </div>
 
   <!-- Визуализация -->
@@ -536,6 +560,12 @@
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="showTour()">🎓 Повторить тур</button>
         <button id="demo-toggle-settings" class="btn btn-ghost btn-sm" style="display:none" onclick="toggleDemo()">🧪 Демо-данные</button>
+      </div>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--text2)">
+        Вопросы и предложения: <a href="https://vk.com/gladkikh_consult" target="_blank" style="color:var(--accent);text-decoration:none">vk.com/gladkikh_consult</a>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text2)">
+        <a href="https://stepik.org/course/284858/promo" target="_blank" style="color:var(--accent);text-decoration:none">Конструктор денежных привычек: основы финансовой грамотности</a>
       </div>
     </div>
   </div>
@@ -748,7 +778,7 @@ const S = {
   settings: {}, currentType: 'expense', selectedCategory: '',
   dashYear: new Date().getFullYear(), dashMonth: new Date().getMonth(),
   viewYear: new Date().getFullYear(), histPeriod: 'month',
-  balanceFilter: 'type', transactionsLoaded: 'none', dynamicsMonths: 12,
+  balanceFilter: 'type', snapMonths: 24, snapHideEmpty: true, snapBlocks: [], snapAccounts: [], transactionsLoaded: 'none', dynamicsMonths: 12,
   chartExpense: null, chartIncome: null, chartDynamics: null,
   isDemo: false,
   editType: 'expense', editCategory: null,
@@ -1255,7 +1285,18 @@ function renderYearSection(type, containerId) {
 function setDynamicsPeriod(months, btn) {
   S.dynamicsMonths = months;
   document.querySelectorAll('#dynamics-period-row .period-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
+  const inp = document.getElementById('dynamics-years');
+  if (inp) inp.disabled = months === 0;
+  renderDynamics();
+}
+
+function dynamicsPeriodInput() {
+  const inp = document.getElementById('dynamics-years');
+  if (!inp || !inp.value) return;
+  S.dynamicsMonths = parseInt(inp.value) * 12;
+  document.querySelectorAll('#dynamics-period-row .period-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('dynamics-years').disabled = false;
   renderDynamics();
 }
 
@@ -1564,6 +1605,65 @@ function setBalanceFilter(filter, btn) {
   renderBalanceChart();
 }
 
+function setSnapPeriod(months, btn) {
+  S.snapMonths = months;
+  document.querySelectorAll('#snapshot-filter .period-btn').forEach(b=>b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const inp = document.getElementById('snap-years');
+  if (inp) inp.disabled = months === 0;
+  renderBalanceChart();
+}
+
+function snapPeriodInput() {
+  const inp = document.getElementById('snap-years');
+  if (!inp || !inp.value) return;
+  S.snapMonths = parseInt(inp.value) * 12;
+  document.querySelectorAll('#snapshot-filter .period-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('snap-years').disabled = false;
+  renderBalanceChart();
+}
+
+function toggleSnapBlock(block) {
+  const idx = S.snapBlocks.indexOf(block);
+  if (idx >= 0) S.snapBlocks.splice(idx, 1);
+  else S.snapBlocks.push(block);
+  renderSnapBlockChips();
+  renderBalanceChart();
+}
+
+function toggleSnapAccount(acc) {
+  const idx = S.snapAccounts.indexOf(acc);
+  if (idx >= 0) S.snapAccounts.splice(idx, 1);
+  else S.snapAccounts.push(acc);
+  renderSnapAccountChips();
+  renderBalanceChart();
+}
+
+function renderSnapBlockChips() {
+  const el = document.getElementById('snap-block-chips');
+  if (!el) return;
+  // derive blocks from actual positions data
+  const blocks = [...new Set(S.positions.map(p => p.block))].filter(Boolean);
+  if (!blocks.length) { el.innerHTML = ''; return; }
+  // ensure all blocks are in snapBlocks by default
+  if (!S.snapBlocks.length) S.snapBlocks = [...blocks];
+  el.innerHTML = blocks.map(b =>
+    `<div class="chip${S.snapBlocks.includes(b) ? ' selected' : ''}" onclick="toggleSnapBlock('${b}')">${BLOCK_LABELS[b] || b}</div>`
+  ).join('');
+}
+
+function renderSnapAccountChips() {
+  const el = document.getElementById('snap-account-chips');
+  if (!el) return;
+  const accounts = [...new Set(S.positions.filter(p => S.snapBlocks.includes(p.block)).map(p => p.account || 'Без счёта'))];
+  if (!accounts.length) { el.innerHTML = ''; return; }
+  if (!S.snapAccounts.length) S.snapAccounts = [...accounts];
+  el.innerHTML = accounts.map(a =>
+    `<div class="chip${S.snapAccounts.includes(a) ? ' selected' : ''}" onclick="toggleSnapAccount('${a.replace(/'/g,"\\'")}')">${a}</div>`
+  ).join('');
+  el.parentElement.style.display = accounts.length < 2 ? 'none' : '';
+}
+
 function renderBalance() {
   const showPassives=S.settings.show_passives==='true'||S.settings.show_passives===true;
 
@@ -1589,9 +1689,17 @@ function renderBalance() {
 function renderBalanceChart() {
   const container=document.getElementById('balance-chart-block');
   const showPassives=S.settings.show_passives==='true'||S.settings.show_passives===true;
+  const snapFilter = document.getElementById('snapshot-filter');
+  const isHistory = S.balanceFilter === 'history';
+  snapFilter.style.display = isHistory ? '' : 'none';
+  if (isHistory) {
+    renderSnapBlockChips();
+    renderSnapAccountChips();
+    const inp = document.getElementById('snap-years');
+    if (inp) inp.disabled = S.snapMonths === 0;
+  }
 
   if(S.balanceFilter==='type') {
-    // по типам активов
     const blocks=showPassives?BLOCK_ORDER:BLOCK_ORDER.filter(b=>b!=='passive');
     const totals={};
     blocks.forEach(b=>{totals[b]=0;});
@@ -1643,8 +1751,7 @@ function renderBalanceChart() {
     });
     container.innerHTML=html;
 
-  } else {
-    // по счетам
+  } else if(S.balanceFilter==='account') {
     const accounts=[...new Set(S.positions.map(p=>p.account||'Без счёта'))];
     const accountTotals={};
     accounts.forEach(a=>{accountTotals[a]=0;});
@@ -1697,6 +1804,9 @@ function renderBalanceChart() {
       html+=`</div></div>`;
     });
     container.innerHTML=html;
+
+  } else {
+    renderBalanceHistory();
   }
 }
 
@@ -1708,6 +1818,121 @@ function toggleBalPositions(id) {
   const header=el.previousElementSibling;
   const arrow=header?.querySelector('.bal-bar-toggle');
   if(arrow) arrow.textContent=el.classList.contains('open')?'▾':'▸';
+}
+
+function renderBalanceHistory() {
+  const container = document.getElementById('balance-chart-block');
+  const hideEmpty = document.getElementById('snap-hide-empty')?.checked !== false;
+
+  // positions with data, filtered by block and account
+  const posIds = [...new Set(S.assets.map(a => a.position_id))];
+  let positions = posIds.map(id => S.positions.find(p => p.id === id)).filter(Boolean)
+    .filter(p => S.snapBlocks.includes(p.block))
+    .filter(p => !S.snapAccounts.length || S.snapAccounts.includes(p.account || 'Без счёта'));
+  if (!positions.length) { container.innerHTML = '<div class="empty">Нет данных</div>'; return; }
+  positions.sort((a, b) => BLOCK_ORDER.indexOf(a.block) - BLOCK_ORDER.indexOf(b.block) || a.name.localeCompare(b.name));
+
+  // months only from filtered positions
+  const filteredPosIds = new Set(positions.map(p => p.id));
+  let months = [...new Set(S.assets.filter(a => filteredPosIds.has(a.position_id)).map(a => a.date.substring(0, 7)))].sort();
+  if (!months.length) { container.innerHTML = '<div class="empty">Нет данных</div>'; return; }
+
+  // period filter
+  if (S.snapMonths > 0) {
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - S.snapMonths + 1, 1);
+    const cutoffKey = `${cutoff.getFullYear()}-${pad(cutoff.getMonth()+1)}`;
+    months = months.filter(m => m >= cutoffKey);
+  }
+
+  if (!months.length) { container.innerHTML = '<div class="empty">Нет данных за выбранный период</div>'; return; }
+
+  // build lookup only for filtered positions
+  const byPos = {};
+  S.assets.filter(a => filteredPosIds.has(a.position_id)).forEach(a => {
+    if (!byPos[a.position_id]) byPos[a.position_id] = [];
+    byPos[a.position_id].push(a);
+  });
+  Object.values(byPos).forEach(arr => arr.sort((a, b) => a.date.localeCompare(b.date)));
+
+  const lookup = {};
+  Object.entries(byPos).forEach(([pid, assets]) => {
+    lookup[pid] = {};
+    let idx = 0;
+    let lastVal = null;
+    months.forEach(m => {
+      const lastDay = `${m}-${pad(new Date(+m.split('-')[0], +m.split('-')[1], 0).getDate())}`;
+      while (idx < assets.length && assets[idx].date <= lastDay) {
+        lastVal = assets[idx].amount;
+        idx++;
+      }
+      if (lastVal != null) lookup[pid][m] = lastVal;
+    });
+  });
+
+  // hide positions with no data in visible months
+  if (hideEmpty) {
+    positions = positions.filter(p => {
+      const pl = lookup[p.id] || {};
+      return months.some(m => pl[m] != null);
+    });
+  }
+
+  if (!positions.length) { container.innerHTML = '<div class="empty">Нет данных за выбранный период</div>'; return; }
+
+  const isDelta = document.getElementById('snap-delta')?.checked;
+  const cell = (v, prev) => {
+    if (isDelta) {
+      if (prev == null || v == null) return '<td style="color:var(--border)">—</td>';
+      const pct = ((v - prev) / prev) * 100;
+      const cls = pct > 0 ? 'c-income' : pct < 0 ? 'c-expense' : '';
+      return `<td class="${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%</td>`;
+    }
+    return v ? `<td>${fmt(v)}</td>` : '<td style="color:var(--border)">—</td>';
+  };
+
+  let html = '<div class="table-wrap"><table class="year-table"><thead><tr><th>Позиция</th>';
+  months.forEach(m => {
+    const [y, mn] = m.split('-');
+    html += `<th>${MONTH_NAMES[parseInt(mn)-1]} ${y.substring(2)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  let lastBlock = '';
+  positions.forEach(p => {
+    const pLookup = lookup[p.id] || {};
+    if (lastBlock !== p.block) {
+      html += `<tr style="background:var(--surface2)"><td colspan="${months.length+1}" style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);padding:6px 10px">${BLOCK_LABELS[p.block] || p.block}</td></tr>`;
+      lastBlock = p.block;
+    }
+    html += `<tr>${p.active === false ? '<td style="opacity:0.5">' : '<td>'}`;
+    html += `${p.name} <span style="font-size:10px;color:var(--text2)">(${p.account || 'Без счёта'})</span>${p.active === false ? ' <span style="font-size:10px">(продана)</span>' : ''}</td>`;
+    months.forEach((m, i) => {
+      const v = pLookup[m];
+      const prev = i > 0 ? pLookup[months[i-1]] : null;
+      html += cell(v, prev);
+    });
+    html += '</tr>';
+  });
+
+  // total row
+  const monthTotals = months.map(m => {
+    let total = 0;
+    positions.forEach(p => {
+      const v = (lookup[p.id] || {})[m];
+      if (v) total += p.block === 'passive' ? -v : v;
+    });
+    return total;
+  });
+
+  html += '<tr class="sep"><td>ИТОГО</td>';
+  monthTotals.forEach((total, i) => {
+    const prev = i > 0 ? monthTotals[i-1] : null;
+    html += cell(total, prev);
+  });
+  html += '</tr></tbody></table></div>';
+
+  container.innerHTML = html;
 }
 
 function renderPositionsList() {
