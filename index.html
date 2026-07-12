@@ -524,6 +524,45 @@
 <!-- ===================== НАСТРОЙКИ ===================== -->
 <div class="page" id="page-settings">
   <div class="card">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" onclick="toggleAbout()">
+      <span>🛈 О приложении</span>
+      <span id="about-arrow" style="font-size:12px;color:var(--text2)">▸</span>
+    </div>
+    <div id="about-block" style="display:none;font-size:13px;line-height:1.7;color:var(--text2)">
+      <div style="margin-top:12px">
+        <b>Личный финансовый трекер</b> — учёт доходов, расходов и капитала. Видите полную картину своих финансов за месяц, год или весь период.
+      </div>
+      <div style="margin-top:10px">
+        Приложение <b>бесплатно</b>, без регистрации и сбора данных. Вы подключаете свою Google Таблицу — все записи в ней. Доступ к таблице есть только у вас и тех, кому вы сами открыли доступ. Автор сервиса <b>не видит и не хранит ваши данные</b>.
+      </div>
+      <div style="margin-top:14px;font-weight:600;color:var(--text)">FAQ</div>
+      <div style="margin-top:8px">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px">Как это работает?</div>
+        <div>Вы создаёте копию Google-таблицы, разворачиваете Apps Script и вставляете ссылку в настройках. Приложение читает и пишет данные напрямую в вашу таблицу через API.</div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px">Какие данные передаются?</div>
+        <div>Только то, что вы сами ввели: суммы, категории, названия позиций. Приложение не имеет доступа к вашим банкам, картам или счетам.</div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px">Я потерял ссылку на скрипт, что делать?</div>
+        <div>Ничего страшного. Откройте таблицу → «Расширения» → «Apps Script» → «Развернуть» → «Новое развертывание» → скопируйте новую ссылку и замените её в настройках приложения. Все данные останутся на месте.</div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px">Можно ли потерять данные?</div>
+        <div>Таблица остаётся у вас в Google Диске даже если приложение перестанет работать. Вы в любой момент можете открыть её вручную.</div>
+      </div>
+      <div style="margin-top:10px">
+        <div style="font-weight:500;color:var(--text);margin-bottom:2px">Сколько стоит?</div>
+        <div>Бесплатно. Если хотите поддержать проект — кнопка ниже 💛</div>
+      </div>
+      <div style="margin-top:16px;text-align:center">
+        <button class="btn btn-primary" onclick="openDonateModal()" style="width:auto;padding:10px 24px;font-size:14px">💛 Поблагодарить автора</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-title">Подключение</div>
     <div class="form-group" style="margin-bottom:12px">
       <div class="form-label">URL Apps Script</div>
@@ -710,10 +749,39 @@
   </div>
 </div>
 
+<!-- DONATE MODAL -->
+<div class="edit-overlay" id="donate-overlay" onclick="if(event.target===this)closeDonateModal()">
+  <div class="edit-modal" style="max-width:520px">
+    <div class="edit-modal-title" style="display:flex;align-items:center;justify-content:space-between">
+      <span>💛 Поддержать проект</span>
+      <span onclick="closeDonateModal()" style="cursor:pointer;font-size:20px;color:var(--text2);line-height:1">&times;</span>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">Если приложение вам помогает, вы можете поддержать автора — любая сумма</div>
+    <iframe src="https://pay.cloudtips.ru/p/b543e04e" style="width:100%;height:520px;border:none;border-radius:12px" loading="lazy"></iframe>
+  </div>
+</div>
+
 <script>
 // ============================================================
 // TOUR
 // ============================================================
+function toggleAbout() {
+  const block = document.getElementById('about-block');
+  const arrow = document.getElementById('about-arrow');
+  const isOpen = block.style.display !== 'none';
+  block.style.display = isOpen ? 'none' : 'block';
+  arrow.textContent = isOpen ? '▸' : '▾';
+  if (!isOpen) setTimeout(() => document.getElementById('about-block').scrollIntoView({behavior:'smooth', block:'center'}), 100);
+}
+
+function openDonateModal() {
+  document.getElementById('donate-overlay').classList.add('show');
+}
+
+function closeDonateModal() {
+  document.getElementById('donate-overlay').classList.remove('show');
+}
+
 function toggleLearn() {
   const block = document.getElementById('learn-block');
   const arrow = document.getElementById('learn-arrow');
